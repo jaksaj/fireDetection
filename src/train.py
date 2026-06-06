@@ -46,11 +46,13 @@ class Trainer:
         weight_decay: float = 1e-4,
         checkpoint_dir: str = "checkpoints/iteration1",
         wandb_config: Optional[dict[str, Any]] = None,
+        log_every_n_batches: int = 25,
     ) -> None:
         self.model = model.to(DEVICE)
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.checkpoint_dir = checkpoint_dir
+        self.log_every_n_batches = max(1, log_every_n_batches)
 
         self.criterion = nn.BCEWithLogitsLoss()
         self.optimizer = torch.optim.Adam(
@@ -82,18 +84,24 @@ class Trainer:
         wandb.watch(self.model, log="gradients", log_freq=100)
         logger.info("W&B run started: %s", self._wandb_run.name)
 
-    def _run_epoch(self, loader: DataLoader, training: bool) -> EpochMetrics:
+    def _run_epoch(
+        self,
+        loader: DataLoader,
+        training: bool,
+        epoch: Optional[int] = None,
+    ) -> EpochMetrics:
         """Execute one epoch of training or validation."""
         self.model.train(training)
         total_loss = 0.0
         total_correct = 0
         total_samples = 0
         start_time = time.perf_counter()
+        total_batches = len(loader)
 
         context = torch.enable_grad() if training else torch.no_grad()
 
         with context:
-            for images, labels in loader:
+            for batch_index, (images, labels) in enumerate(loader, start=1):
                 images = images.to(DEVICE, non_blocking=True)
                 labels = labels.to(DEVICE, non_blocking=True)
 
@@ -112,6 +120,22 @@ class Trainer:
                 )
                 total_samples += batch_size
 
+                if training and batch_index % self.log_every_n_batches == 0:
+                    elapsed_sec = time.perf_counter() - start_time
+                    batches_per_sec = batch_index / max(elapsed_sec, 1e-6)
+                    batch_loss = total_loss / max(total_samples, 1)
+                    batch_accuracy = total_correct / max(total_samples, 1)
+                    epoch_prefix = f"Epoch {epoch:03d} " if epoch is not None else ""
+                    logger.info(
+                        "%s[train] batch %04d/%04d loss=%.4f acc=%.4f speed=%.2f it/s",
+                        epoch_prefix,
+                        batch_index,
+                        total_batches,
+                        batch_loss,
+                        batch_accuracy,
+                        batches_per_sec,
+                    )
+
         duration_sec = time.perf_counter() - start_time
         avg_loss = total_loss / max(total_samples, 1)
         avg_accuracy = total_correct / max(total_samples, 1)
@@ -124,7 +148,7 @@ class Trainer:
 
     def train_epoch(self, epoch: int) -> EpochMetrics:
         """Run a single training epoch and log metrics."""
-        metrics = self._run_epoch(self.train_loader, training=True)
+        metrics = self._run_epoch(self.train_loader, training=True, epoch=epoch)
         logger.info(
             "Epoch %03d [train] loss=%.4f acc=%.4f time=%.2fs",
             epoch,
@@ -136,7 +160,7 @@ class Trainer:
 
     def validate_epoch(self, epoch: int) -> EpochMetrics:
         """Run a single validation epoch and log metrics."""
-        metrics = self._run_epoch(self.val_loader, training=False)
+        metrics = self._run_epoch(self.val_loader, training=False, epoch=epoch)
         logger.info(
             "Epoch %03d [val]   loss=%.4f acc=%.4f time=%.2fs",
             epoch,

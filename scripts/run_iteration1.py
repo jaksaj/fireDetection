@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import torch
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +41,8 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
 
+    torch.backends.cudnn.benchmark = True
+
     data_cfg = config["data"]
     model_cfg = config["model"]
     train_cfg = config["training"]
@@ -71,6 +74,7 @@ def main() -> None:
         weight_decay=train_cfg["weight_decay"],
         checkpoint_dir=str(PROJECT_ROOT / train_cfg["checkpoint_dir"]),
         wandb_config=wandb_cfg,
+        log_every_n_batches=train_cfg.get("log_every_n_batches", 25),
     )
 
     experiment_config = {

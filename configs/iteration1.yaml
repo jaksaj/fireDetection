@@ -15,15 +15,16 @@ model:
   base_channels: 32
 
 training:
-  epochs: 25
+  epochs: 10
   learning_rate: 0.001
   weight_decay: 0.0001
   checkpoint_dir: checkpoints/iteration1
   run_test_after_training: true
+  log_every_n_batches: 25
 
 wandb:
   project: smoke-fire-detection
-  entity: null  # set to your W&B username or team
+  entity: jaksaj35-university-of-split  # set to your W&B username or team
   run_name: iteration1-binary-cnn
   tags:
     - iteration1
