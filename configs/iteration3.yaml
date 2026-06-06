@@ -1,0 +1,48 @@
+# Iteration 3: Robustness, LR Scheduling & Edge PTQ Simulation
+data:
+  root_dir: data
+  train_split: train
+  val_split: val
+  test_split: test
+  fire_class_id: 1
+  smoke_class_id: 0
+  image_size: 224
+  batch_size: 32
+  num_workers: 4
+  use_class_weights: true
+  augmentation: albumentations   # torchvision | albumentations
+
+model:
+  name: mobilenet_v3_small
+  num_classes: 4
+  pretrained: true
+  dropout: 0.2
+
+training:
+  head_epochs: 5
+  head_learning_rate: 0.001
+  finetune_epochs: 10
+  finetune_learning_rate: 0.0001
+  unfreeze_blocks: 3
+  weight_decay: 0.0001
+  checkpoint_dir: checkpoints/iteration3
+  run_test_after_training: true
+  run_edge_simulation: true
+  log_every_n_batches: 25
+  scheduler:
+    type: cosine          # cosine | plateau
+    eta_min: 0.000001
+    # plateau-only options:
+    factor: 0.5
+    patience: 2
+
+wandb:
+  project: smoke-fire-detection
+  entity: jaksaj35-university-of-split
+  run_name: iteration3-robust-mobilenet
+  tags:
+    - iteration3
+    - albumentations
+    - lr-scheduling
+    - edge-simulation
+    - d-fire

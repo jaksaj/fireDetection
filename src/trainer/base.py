@@ -59,6 +59,7 @@ class BaseTrainer:
 
         self.wandb_config = wandb_config or {}
         self.wandb_tags = wandb_tags or []
+        self.scheduler: Optional[torch.optim.lr_scheduler.LRScheduler] = None
         self._wandb_run: Optional[Any] = None
         self.best_val_loss = float("inf")
 
@@ -67,6 +68,12 @@ class BaseTrainer:
     def set_optimizer(self, optimizer: torch.optim.Optimizer) -> None:
         """Replace the optimizer (used when switching training phases)."""
         self.optimizer = optimizer
+
+    def set_scheduler(
+        self, scheduler: Optional[torch.optim.lr_scheduler.LRScheduler]
+    ) -> None:
+        """Replace the learning-rate scheduler (used when switching training phases)."""
+        self.scheduler = scheduler
 
     def compute_batch_accuracy(
         self, logits: torch.Tensor, labels: torch.Tensor
@@ -220,6 +227,30 @@ class BaseTrainer:
     def _phase_prefix(phase: str) -> str:
         return f"{phase}/" if phase else ""
 
+    def _step_scheduler(self, val_loss: float) -> None:
+        if self.scheduler is None:
+            return
+
+        if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            self.scheduler.step(val_loss)
+        else:
+            self.scheduler.step()
+
+    def _current_learning_rates(self) -> list[float]:
+        return [group["lr"] for group in self.optimizer.param_groups]
+
+    def _log_learning_rate(self, epoch: int, phase: str) -> None:
+        learning_rates = self._current_learning_rates()
+        if not learning_rates:
+            return
+
+        prefix = self._phase_prefix(phase)
+        payload = {f"{prefix}lr": learning_rates[0]}
+        for index, learning_rate in enumerate(learning_rates):
+            payload[f"{prefix}lr/group_{index}"] = learning_rate
+
+        wandb.log(payload, step=epoch)
+
     def _log_epoch_metrics(
         self,
         epoch: int,
@@ -323,6 +354,8 @@ class BaseTrainer:
             train_metrics = self.train_epoch(global_epoch)
             val_metrics = self.validate_epoch(global_epoch)
             self._log_epoch_metrics(global_epoch, phase_name, train_metrics, val_metrics)
+            self._step_scheduler(val_metrics.loss)
+            self._log_learning_rate(global_epoch, phase_name)
 
             saved = self._maybe_save_best(
                 global_epoch,

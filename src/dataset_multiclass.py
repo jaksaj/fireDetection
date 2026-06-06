@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Callable, Optional, Tuple
 
+import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
@@ -49,11 +50,13 @@ class DFireMulticlassDataset(Dataset):
         transform: Optional[Callable] = None,
         fire_class_id: int = DFIRE_CLASS_FIRE,
         smoke_class_id: int = DFIRE_CLASS_SMOKE,
+        use_albumentations: bool = False,
     ) -> None:
         self.split_dir = Path(split_dir)
         self.images_dir = self.split_dir / "images"
         self.labels_dir = self.split_dir / "labels"
         self.transform = transform
+        self.use_albumentations = use_albumentations
         self.fire_class_id = fire_class_id
         self.smoke_class_id = smoke_class_id
         self.samples: list[Tuple[Path, Path, int]] = self._discover_samples()
@@ -104,7 +107,10 @@ class DFireMulticlassDataset(Dataset):
             image = img.convert("RGB")
 
         if self.transform is not None:
-            image = self.transform(image)
+            if self.use_albumentations:
+                image = self.transform(image=np.array(image))["image"]
+            else:
+                image = self.transform(image)
 
         label_tensor = torch.tensor(label, dtype=torch.long)
         return image, label_tensor
@@ -127,6 +133,7 @@ class DFireMulticlassDataModule:
         train_split: str = "train",
         val_split: str = "val",
         test_split: str = "test",
+        augmentation: str = "torchvision",
     ) -> None:
         self.root_dir = Path(root_dir)
         self.image_size = image_size
@@ -137,7 +144,26 @@ class DFireMulticlassDataModule:
         self.train_split = train_split
         self.val_split = val_split
         self.test_split = test_split
+        self.augmentation = augmentation
+        self.use_albumentations = augmentation == "albumentations"
 
+        if self.use_albumentations:
+            from src.augmentations import (
+                build_robust_eval_transforms,
+                build_robust_train_transforms,
+            )
+
+            self.train_transform = build_robust_train_transforms(image_size)
+            self.eval_transform = build_robust_eval_transforms(image_size)
+        else:
+            self._build_torchvision_transforms(image_size)
+
+        self._train_loader: Optional[DataLoader] = None
+        self._val_loader: Optional[DataLoader] = None
+        self._test_loader: Optional[DataLoader] = None
+        self._train_dataset: Optional[DFireMulticlassDataset] = None
+
+    def _build_torchvision_transforms(self, image_size: int) -> None:
         self.train_transform = transforms.Compose(
             [
                 transforms.Resize((image_size, image_size)),
@@ -162,11 +188,6 @@ class DFireMulticlassDataModule:
             ]
         )
 
-        self._train_loader: Optional[DataLoader] = None
-        self._val_loader: Optional[DataLoader] = None
-        self._test_loader: Optional[DataLoader] = None
-        self._train_dataset: Optional[DFireMulticlassDataset] = None
-
     def _build_loader(
         self,
         split_name: str,
@@ -178,6 +199,7 @@ class DFireMulticlassDataModule:
             transform=transform,
             fire_class_id=self.fire_class_id,
             smoke_class_id=self.smoke_class_id,
+            use_albumentations=self.use_albumentations,
         )
         return DataLoader(
             dataset,
@@ -189,23 +211,25 @@ class DFireMulticlassDataModule:
 
     def setup(self) -> None:
         """Build train, validation, and test DataLoaders."""
+        dataset_kwargs = {
+            "fire_class_id": self.fire_class_id,
+            "smoke_class_id": self.smoke_class_id,
+            "use_albumentations": self.use_albumentations,
+        }
         self._train_dataset = DFireMulticlassDataset(
             split_dir=self.root_dir / self.train_split,
             transform=self.train_transform,
-            fire_class_id=self.fire_class_id,
-            smoke_class_id=self.smoke_class_id,
+            **dataset_kwargs,
         )
         val_dataset = DFireMulticlassDataset(
             split_dir=self.root_dir / self.val_split,
             transform=self.eval_transform,
-            fire_class_id=self.fire_class_id,
-            smoke_class_id=self.smoke_class_id,
+            **dataset_kwargs,
         )
         test_dataset = DFireMulticlassDataset(
             split_dir=self.root_dir / self.test_split,
             transform=self.eval_transform,
-            fire_class_id=self.fire_class_id,
-            smoke_class_id=self.smoke_class_id,
+            **dataset_kwargs,
         )
 
         self._train_loader = DataLoader(
