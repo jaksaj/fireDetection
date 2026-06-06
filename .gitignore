@@ -17,6 +17,12 @@ logs/
 wandb/
 *.pt
 *.pth
+*.onnx
+*.engine
+runs/
+
+# Generated at runtime for YOLO training
+configs/dfire_detection.yaml
 
 # IDE & OS
 .idea/

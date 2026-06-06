@@ -1,0 +1,50 @@
+# Iteration 4: YOLO26 Object Detection (Fire & Smoke Localization)
+data:
+  root_dir: data
+  train_split: train
+  val_split: val
+  test_split: test
+  class_names:
+    - smoke
+    - fire
+  yaml_output: configs/dfire_detection.yaml
+
+model:
+  weights: yolo26n.pt       # edge-friendly: yolo26n | yolo26s | yolo26m
+
+training:
+  epochs: 50
+  imgsz: 640
+  batch: 16
+  patience: 15
+  workers: 4
+  learning_rate: 0.01
+  weight_decay: 0.0005
+  optimizer: auto           # auto selects MuSGD for long runs
+  pretrained: true
+  plots: true
+  checkpoint_dir: checkpoints/iteration4
+  run_name: yolo26-dfire
+  run_test_eval: true
+  conf_threshold: 0.25
+
+export:
+  enabled: true
+  formats:
+    - onnx
+    - engine                 # TensorRT — requires CUDA + TensorRT on GPU machine
+  export_dir: checkpoints/iteration4/exports
+  benchmark_source: data/test/images
+  benchmark_iterations: 100
+  target_edge_fps: 30
+
+wandb:
+  project: smoke-fire-detection
+  entity: jaksaj35-university-of-split
+  run_name: iteration4-yolo26-detection
+  tags:
+    - iteration4
+    - yolo26
+    - object-detection
+    - d-fire
+    - edge-deployment
