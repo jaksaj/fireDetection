@@ -318,13 +318,18 @@ class BaseTrainer:
         best_checkpoint_path: Optional[str] = None
         global_epoch = config.get("_global_epoch_offset", 0)
 
-        for epoch in range(1, epochs + 1):
+        for _ in range(1, epochs + 1):
             global_epoch += 1
-            train_metrics = self.train_epoch(epoch)
-            val_metrics = self.validate_epoch(epoch)
+            train_metrics = self.train_epoch(global_epoch)
+            val_metrics = self.validate_epoch(global_epoch)
             self._log_epoch_metrics(global_epoch, phase_name, train_metrics, val_metrics)
 
-            saved = self._maybe_save_best(epoch, train_metrics, val_metrics, phase_name)
+            saved = self._maybe_save_best(
+                global_epoch,
+                train_metrics,
+                val_metrics,
+                phase_name,
+            )
             if saved is not None:
                 best_checkpoint_path = saved
 

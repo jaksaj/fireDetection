@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import torch
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +40,8 @@ def main() -> None:
     configure_logging()
     args = parse_args()
     config = load_config(args.config)
+
+    torch.backends.cudnn.benchmark = True
 
     data_cfg = config["data"]
     model_cfg = config["model"]
