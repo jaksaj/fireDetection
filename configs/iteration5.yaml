@@ -1,0 +1,45 @@
+# Iteration 5: Pixel-Level Semantic Segmentation (Lightweight Custom U-Net)
+data:
+  root_dir: data/coco
+  train_split: train
+  val_split: valid
+  test_split: test
+  image_size: 256
+  batch_size: 16
+  num_workers: 4
+  coco_annotation_file: _annotations.coco.json
+  classes:
+    - background
+    - smoke
+    - fire
+
+model:
+  name: lightweight_unet
+  in_channels: 3
+  num_classes: 3
+  base_channels: 32
+
+training:
+  epochs: 40
+  learning_rate: 0.0005
+  weight_decay: 0.0001
+  checkpoint_dir: checkpoints/iteration5
+  run_test_after_training: true
+  log_every_n_batches: 10
+  use_amp: true
+  dice_weight: 1.0
+  focal_weight: 1.0
+  # Focal loss specific parameters:
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+
+wandb:
+  project: smoke-fire-detection
+  entity: jaksaj35-university-of-split
+  run_name: iteration5-lightweight-unet
+  tags:
+    - iteration5
+    - custom-unet
+    - semantic-segmentation
+    - coco-dataset
+    - mixed-precision
