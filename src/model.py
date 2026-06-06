@@ -1,4 +1,4 @@
-"""Convolutional neural network for Iteration 1 binary fire detection."""
+"""Convolutional neural network models for fire and smoke classification."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import logging
 
 import torch
 import torch.nn as nn
+from torchvision.models import MobileNet_V3_Small_Weights, mobilenet_v3_small
 
 logger = logging.getLogger(__name__)
 
@@ -88,3 +89,90 @@ class FireCNN(nn.Module):
         x = self.global_pool(x)
         x = torch.flatten(x, 1)
         return self.classifier(x)
+
+
+class MobileNetV3FireClassifier(nn.Module):
+    """
+    Transfer-learning classifier built on MobileNetV3-Small for 4-class D-Fire.
+
+    Supports freezing the ImageNet backbone for head-only training, then
+    unfreezing the top feature blocks for fine-tuning at a lower learning rate.
+    """
+
+    def __init__(
+        self,
+        num_classes: int = 4,
+        pretrained: bool = True,
+        dropout: float = 0.2,
+    ) -> None:
+        super().__init__()
+
+        weights = MobileNet_V3_Small_Weights.DEFAULT if pretrained else None
+        self.backbone = mobilenet_v3_small(weights=weights)
+
+        in_features = self.backbone.classifier[0].in_features
+        self.backbone.classifier = nn.Sequential(
+            nn.Linear(in_features, 256),
+            nn.Hardswish(inplace=True),
+            nn.Dropout(p=dropout),
+            nn.Linear(256, num_classes),
+        )
+
+        self.to(DEVICE)
+
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in self.parameters())
+        logger.info(
+            "MobileNetV3FireClassifier initialized (%d classes, %d/%d trainable params) on %s",
+            num_classes,
+            trainable,
+            total,
+            DEVICE,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.backbone(x)
+
+    def freeze_backbone(self) -> None:
+        """Freeze all feature-extraction layers; train classifier head only."""
+        for parameter in self.backbone.features.parameters():
+            parameter.requires_grad = False
+        for parameter in self.backbone.classifier.parameters():
+            parameter.requires_grad = True
+        logger.info("Backbone frozen — classifier head is trainable.")
+
+    def unfreeze_top_layers(self, num_blocks: int = 3) -> None:
+        """Unfreeze the top ``num_blocks`` of the feature extractor plus the head."""
+        for parameter in self.backbone.features.parameters():
+            parameter.requires_grad = False
+
+        feature_blocks = self.backbone.features
+        start_index = max(0, len(feature_blocks) - num_blocks)
+        for block_index in range(start_index, len(feature_blocks)):
+            for parameter in feature_blocks[block_index].parameters():
+                parameter.requires_grad = True
+
+        for parameter in self.backbone.classifier.parameters():
+            parameter.requires_grad = True
+
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        logger.info(
+            "Unfroze top %d feature blocks — %d trainable parameters.",
+            num_blocks,
+            trainable,
+        )
+
+    def trainable_parameter_groups(self) -> tuple[list[nn.Parameter], list[nn.Parameter]]:
+        """Return (backbone, head) parameter groups for differential learning rates."""
+        backbone_params: list[nn.Parameter] = []
+        head_params: list[nn.Parameter] = []
+
+        for name, parameter in self.named_parameters():
+            if not parameter.requires_grad:
+                continue
+            if name.startswith("backbone.classifier"):
+                head_params.append(parameter)
+            else:
+                backbone_params.append(parameter)
+
+        return backbone_params, head_params

@@ -10,7 +10,9 @@ from src.dfire_labels import (
     DFIRE_CLASS_FIRE,
     DFIRE_CLASS_SMOKE,
     IMAGE_EXTENSIONS,
+    MULTICLASS_CLASS_NAMES,
     derive_binary_label,
+    derive_multiclass_label,
     parse_yolo_label_file,
 )
 
@@ -33,6 +35,7 @@ class SplitStats:
     orphan_labels: int = 0
     yolo_fire_boxes: int = 0
     yolo_smoke_boxes: int = 0
+    multiclass_counts: dict[str, int] = field(default_factory=dict)
 
     @property
     def binary_fire_ratio(self) -> float:
@@ -71,7 +74,10 @@ class DFireDatasetInspector:
         images_dir = split_dir / "images"
         labels_dir = split_dir / "labels"
 
-        stats = SplitStats(split_name=split_name)
+        stats = SplitStats(
+            split_name=split_name,
+            multiclass_counts={name: 0 for name in MULTICLASS_CLASS_NAMES},
+        )
 
         if not images_dir.is_dir():
             logger.warning("Split images directory missing: %s", images_dir)
@@ -118,6 +124,14 @@ class DFireDatasetInspector:
             else:
                 stats.normal_images += 1
 
+            multiclass_label = derive_multiclass_label(
+                label_path,
+                fire_class_id=self.fire_class_id,
+                smoke_class_id=self.smoke_class_id,
+            )
+            class_name = MULTICLASS_CLASS_NAMES[multiclass_label]
+            stats.multiclass_counts[class_name] += 1
+
         return stats
 
     def inspect(self, splits: tuple[str, ...] = ("train", "val", "test")) -> DatasetReport:
@@ -156,8 +170,10 @@ class DFireDatasetInspector:
                     f"  orphan labels:       {stats.orphan_labels}",
                     f"  YOLO fire boxes:     {stats.yolo_fire_boxes}",
                     f"  YOLO smoke boxes:    {stats.yolo_smoke_boxes}",
-                    "",
                 ]
             )
+            for class_name, count in stats.multiclass_counts.items():
+                lines.append(f"  {class_name + ':':<21} {count}")
+            lines.append("")
 
         return "\n".join(lines).rstrip()
