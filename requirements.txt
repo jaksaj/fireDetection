@@ -1,0 +1,6 @@
+# Install PyTorch with CUDA separately (see setup instructions).
+# Remaining dependencies:
+wandb>=0.16.0
+Pillow>=10.0.0
+numpy>=1.24.0
+PyYAML>=6.0.0

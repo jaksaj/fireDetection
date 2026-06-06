@@ -1,0 +1,28 @@
+# Iteration 1: Binary Classification (Fire vs. Normal)
+data:
+  root_dir: data/d_fire
+  image_size: 224
+  batch_size: 32
+  num_workers: 4
+  val_split: 0.2
+  seed: 42
+
+model:
+  in_channels: 3
+  num_conv_blocks: 4
+  base_channels: 32
+
+training:
+  epochs: 25
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  checkpoint_dir: checkpoints/iteration1
+
+wandb:
+  project: smoke-fire-detection
+  entity: null  # set to your W&B username or team
+  run_name: iteration1-binary-cnn
+  tags:
+    - iteration1
+    - binary-classification
+    - d-fire
