@@ -109,7 +109,7 @@ def main() -> None:
         experiment_config=experiment_config,
         test_loader=test_loader,
         image_size=data_cfg["image_size"],
-        run_edge_simulation=train_cfg.get("run_edge_simulation", True),
+        run_edge_simulation_flag=train_cfg.get("run_edge_simulation", True),
     )
 
 

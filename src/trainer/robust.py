@@ -8,7 +8,7 @@ from typing import Any, Optional
 import torch
 from torch.utils.data import DataLoader
 
-from src.edge_simulation import run_edge_simulation
+from src.edge_simulation import run_edge_simulation as simulate_edge_simulation
 from src.model import MobileNetV3FireClassifier
 from src.trainer.multiclass import MulticlassTrainer
 from src.utils import load_checkpoint
@@ -78,7 +78,7 @@ class RobustMulticlassTrainer(MulticlassTrainer):
         experiment_config: Optional[dict[str, Any]] = None,
         test_loader: Optional[DataLoader] = None,
         image_size: int = 224,
-        run_edge_simulation: bool = True,
+        run_edge_simulation_flag: bool = True,
     ) -> dict[str, Any]:
         summary = self.fit_two_phase(
             head_epochs=head_epochs,
@@ -90,7 +90,7 @@ class RobustMulticlassTrainer(MulticlassTrainer):
             test_loader=test_loader,
         )
 
-        if not run_edge_simulation or test_loader is None:
+        if not run_edge_simulation_flag or test_loader is None:
             return summary
 
         best_checkpoint = summary.get("best_checkpoint")
@@ -99,7 +99,7 @@ class RobustMulticlassTrainer(MulticlassTrainer):
 
         import wandb
 
-        edge_metrics = run_edge_simulation(
+        edge_metrics = simulate_edge_simulation(
             model=self.model,
             test_loader=test_loader,
             class_names=self.class_names,
