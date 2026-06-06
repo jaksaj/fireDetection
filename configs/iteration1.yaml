@@ -1,11 +1,13 @@
 # Iteration 1: Binary Classification (Fire vs. Normal)
 data:
-  root_dir: data/d_fire
+  root_dir: data
+  train_split: train
+  val_split: val
+  test_split: test
+  fire_class_id: 1        # D-Fire YOLO: 0 = smoke, 1 = fire
   image_size: 224
   batch_size: 32
   num_workers: 4
-  val_split: 0.2
-  seed: 42
 
 model:
   in_channels: 3
@@ -17,6 +19,7 @@ training:
   learning_rate: 0.001
   weight_decay: 0.0001
   checkpoint_dir: checkpoints/iteration1
+  run_test_after_training: true
 
 wandb:
   project: smoke-fire-detection

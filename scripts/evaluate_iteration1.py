@@ -1,4 +1,4 @@
-"""Entry point for Iteration 1: Binary Fire vs. Normal classification."""
+"""Evaluate a trained Iteration 1 checkpoint on the D-Fire test split."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import torch
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -14,18 +15,26 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from src.dataset import DFireDataModule
 from src.model import FireCNN
 from src.train import Trainer
-from src.utils import configure_logging
+from src.utils import configure_logging, load_checkpoint
+
+DEVICE = torch.device("cuda")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Train Iteration 1 binary fire classifier on D-Fire."
+        description="Evaluate Iteration 1 binary classifier on the test split."
     )
     parser.add_argument(
         "--config",
         type=Path,
         default=PROJECT_ROOT / "configs" / "iteration1.yaml",
         help="Path to YAML experiment configuration.",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=PROJECT_ROOT / "checkpoints" / "iteration1" / "best_model.pt",
+        help="Path to a trained checkpoint file.",
     )
     return parser.parse_args()
 
@@ -43,7 +52,6 @@ def main() -> None:
     data_cfg = config["data"]
     model_cfg = config["model"]
     train_cfg = config["training"]
-    wandb_cfg = config["wandb"]
 
     data_module = DFireDataModule(
         root_dir=PROJECT_ROOT / data_cfg["root_dir"],
@@ -63,35 +71,17 @@ def main() -> None:
         base_channels=model_cfg["base_channels"],
     )
 
+    optimizer = torch.optim.Adam(model.parameters())
+    load_checkpoint(args.checkpoint, model, optimizer)
+
     trainer = Trainer(
         model=model,
         train_loader=data_module.train_loader,
         val_loader=data_module.val_loader,
-        learning_rate=train_cfg["learning_rate"],
-        weight_decay=train_cfg["weight_decay"],
         checkpoint_dir=str(PROJECT_ROOT / train_cfg["checkpoint_dir"]),
-        wandb_config=wandb_cfg,
     )
 
-    experiment_config = {
-        "iteration": 1,
-        "task": "binary_classification",
-        **data_cfg,
-        **model_cfg,
-        **train_cfg,
-    }
-
-    test_loader = (
-        data_module.test_loader
-        if train_cfg.get("run_test_after_training", True)
-        else None
-    )
-
-    trainer.fit(
-        epochs=train_cfg["epochs"],
-        experiment_config=experiment_config,
-        test_loader=test_loader,
-    )
+    trainer.evaluate(data_module.test_loader, split_name="test")
 
 
 if __name__ == "__main__":

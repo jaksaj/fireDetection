@@ -12,7 +12,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import wandb
 
-from src.utils import calculate_accuracy, save_checkpoint
+from src.utils import calculate_accuracy, load_checkpoint, save_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,24 @@ class Trainer:
         )
         return metrics
 
-    def fit(self, epochs: int, experiment_config: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    def evaluate(self, loader: DataLoader, split_name: str = "test") -> EpochMetrics:
+        """Run inference on a held-out DataLoader (e.g. test split)."""
+        metrics = self._run_epoch(loader, training=False)
+        logger.info(
+            "[%s] loss=%.4f acc=%.4f time=%.2fs",
+            split_name,
+            metrics.loss,
+            metrics.accuracy,
+            metrics.duration_sec,
+        )
+        return metrics
+
+    def fit(
+        self,
+        epochs: int,
+        experiment_config: Optional[dict[str, Any]] = None,
+        test_loader: Optional[DataLoader] = None,
+    ) -> dict[str, Any]:
         """
         Full training loop across ``epochs`` with W&B logging and checkpointing.
 
@@ -161,6 +178,7 @@ class Trainer:
         self._init_wandb(config)
 
         best_checkpoint_path: Optional[str] = None
+        test_metrics: Optional[EpochMetrics] = None
 
         try:
             for epoch in range(1, epochs + 1):
@@ -205,14 +223,32 @@ class Trainer:
                         step=epoch,
                     )
 
+            if test_loader is not None:
+                if best_checkpoint_path is not None:
+                    load_checkpoint(best_checkpoint_path, self.model, self.optimizer)
+                test_metrics = self.evaluate(test_loader, split_name="test")
+                wandb.log(
+                    {
+                        "test/loss": test_metrics.loss,
+                        "test/accuracy": test_metrics.accuracy,
+                        "test/epoch_time_sec": test_metrics.duration_sec,
+                    },
+                    step=epochs,
+                )
+
         finally:
             if self._wandb_run is not None:
                 wandb.finish()
 
-        summary = {
+        summary: dict[str, Any] = {
             "best_val_loss": self.best_val_loss,
             "best_checkpoint": best_checkpoint_path,
             "epochs_completed": epochs,
         }
+
+        if test_metrics is not None:
+            summary["test_loss"] = test_metrics.loss
+            summary["test_accuracy"] = test_metrics.accuracy
+
         logger.info("Training complete: %s", summary)
         return summary

@@ -3,73 +3,90 @@
 from __future__ import annotations
 
 import logging
-import random
 from pathlib import Path
 from typing import Callable, Optional, Tuple
 
 import torch
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
+
+from src.dfire_labels import (
+    DFIRE_CLASS_FIRE,
+    IMAGE_EXTENSIONS,
+    derive_binary_label,
+)
 
 logger = logging.getLogger(__name__)
 
 DEVICE = torch.device("cuda")
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+SPLIT_NAMES = ("train", "val", "test")
 
 
 class DFireBinaryDataset(Dataset):
     """
     Custom ``torch.utils.data.Dataset`` for D-Fire binary classification.
 
-    Expects the following directory layout::
+    Expects the official pre-split YOLO layout::
 
-        root_dir/
-            Fire/
+        <split_dir>/
+            images/
                 *.jpg
-            Normal/
-                *.jpg
+            labels/
+                *.txt
 
-    Labels are encoded as ``1`` (Fire) and ``0`` (Normal).
-  """
+    Binary labels are derived from YOLO annotations:
+        - Fire (1): at least one fire bounding box in the label file.
+        - Normal (0): empty label or smoke-only / background.
+    """
 
-    CLASS_TO_LABEL = {"Fire": 1, "Normal": 0}
     LABEL_TO_CLASS = {1: "Fire", 0: "Normal"}
 
     def __init__(
         self,
-        root_dir: str | Path,
+        split_dir: str | Path,
         transform: Optional[Callable] = None,
+        fire_class_id: int = DFIRE_CLASS_FIRE,
     ) -> None:
-        self.root_dir = Path(root_dir)
+        self.split_dir = Path(split_dir)
+        self.images_dir = self.split_dir / "images"
+        self.labels_dir = self.split_dir / "labels"
         self.transform = transform
-        self.samples: list[Tuple[Path, int]] = self._discover_samples()
+        self.fire_class_id = fire_class_id
+        self.samples: list[Tuple[Path, Path, int]] = self._discover_samples()
 
         if not self.samples:
             raise FileNotFoundError(
-                f"No images found under {self.root_dir}. "
-                "Expected subdirectories 'Fire/' and 'Normal/'."
+                f"No images found under {self.images_dir}. "
+                "Expected D-Fire layout: <split>/images/ and <split>/labels/."
             )
 
+        fire_count = sum(label for _, _, label in self.samples)
+        normal_count = len(self.samples) - fire_count
         logger.info(
-            "DFireBinaryDataset initialized: %d samples from %s",
+            "DFireBinaryDataset [%s]: %d samples (fire=%d, normal=%d)",
+            self.split_dir.name,
             len(self.samples),
-            self.root_dir,
+            fire_count,
+            normal_count,
         )
 
-    def _discover_samples(self) -> list[Tuple[Path, int]]:
-        samples: list[Tuple[Path, int]] = []
+    def _discover_samples(self) -> list[Tuple[Path, Path, int]]:
+        if not self.images_dir.is_dir():
+            raise FileNotFoundError(f"Images directory not found: {self.images_dir}")
+        if not self.labels_dir.is_dir():
+            raise FileNotFoundError(f"Labels directory not found: {self.labels_dir}")
 
-        for class_name, label in self.CLASS_TO_LABEL.items():
-            class_dir = self.root_dir / class_name
-            if not class_dir.is_dir():
-                logger.warning("Missing class directory: %s", class_dir)
+        samples: list[Tuple[Path, Path, int]] = []
+
+        for image_path in sorted(self.images_dir.iterdir()):
+            if image_path.suffix.lower() not in IMAGE_EXTENSIONS:
                 continue
 
-            for image_path in sorted(class_dir.rglob("*")):
-                if image_path.suffix.lower() in IMAGE_EXTENSIONS:
-                    samples.append((image_path, label))
+            label_path = self.labels_dir / f"{image_path.stem}.txt"
+            binary_label = derive_binary_label(label_path, self.fire_class_id)
+            samples.append((image_path, label_path, binary_label))
 
         return samples
 
@@ -77,7 +94,7 @@ class DFireBinaryDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        image_path, label = self.samples[index]
+        image_path, _label_path, label = self.samples[index]
 
         with Image.open(image_path) as img:
             image = img.convert("RGB")
@@ -91,10 +108,9 @@ class DFireBinaryDataset(Dataset):
 
 class DFireDataModule:
     """
-    Encapsulates dataset creation, train/val splitting, and DataLoader construction.
+    Builds train, validation, and test DataLoaders from the D-Fire split folders.
 
-    All tensors produced by the DataLoaders are intended for GPU training; the
-    ``Trainer`` moves each batch to CUDA during the training loop.
+    All tensors are consumed on CUDA inside the ``Trainer`` training loop.
     """
 
     def __init__(
@@ -103,15 +119,19 @@ class DFireDataModule:
         image_size: int = 224,
         batch_size: int = 32,
         num_workers: int = 4,
-        val_split: float = 0.2,
-        seed: int = 42,
+        fire_class_id: int = DFIRE_CLASS_FIRE,
+        train_split: str = "train",
+        val_split: str = "val",
+        test_split: str = "test",
     ) -> None:
         self.root_dir = Path(root_dir)
         self.image_size = image_size
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.fire_class_id = fire_class_id
+        self.train_split = train_split
         self.val_split = val_split
-        self.seed = seed
+        self.test_split = test_split
 
         self.train_transform = transforms.Compose(
             [
@@ -125,7 +145,7 @@ class DFireDataModule:
             ]
         )
 
-        self.val_transform = transforms.Compose(
+        self.eval_transform = transforms.Compose(
             [
                 transforms.Resize((image_size, image_size)),
                 transforms.ToTensor(),
@@ -138,47 +158,44 @@ class DFireDataModule:
 
         self._train_loader: Optional[DataLoader] = None
         self._val_loader: Optional[DataLoader] = None
+        self._test_loader: Optional[DataLoader] = None
 
-    def _split_indices(self, dataset_size: int) -> Tuple[list[int], list[int]]:
-        indices = list(range(dataset_size))
-        random.Random(self.seed).shuffle(indices)
-
-        val_size = int(dataset_size * self.val_split)
-        val_indices = indices[:val_size]
-        train_indices = indices[val_size:]
-        return train_indices, val_indices
-
-    def setup(self) -> None:
-        """Build train and validation DataLoaders."""
-        full_dataset = DFireBinaryDataset(self.root_dir, transform=None)
-        train_indices, val_indices = self._split_indices(len(full_dataset))
-
-        train_dataset = DFireBinaryDataset(self.root_dir, transform=self.train_transform)
-        val_dataset = DFireBinaryDataset(self.root_dir, transform=self.val_transform)
-
-        train_subset = Subset(train_dataset, train_indices)
-        val_subset = Subset(val_dataset, val_indices)
-
-        self._train_loader = DataLoader(
-            train_subset,
+    def _build_loader(
+        self,
+        split_name: str,
+        transform: Callable,
+        shuffle: bool,
+    ) -> DataLoader:
+        dataset = DFireBinaryDataset(
+            split_dir=self.root_dir / split_name,
+            transform=transform,
+            fire_class_id=self.fire_class_id,
+        )
+        return DataLoader(
+            dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=shuffle,
             num_workers=self.num_workers,
             pin_memory=True,
         )
 
-        self._val_loader = DataLoader(
-            val_subset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            pin_memory=True,
+    def setup(self) -> None:
+        """Build train, validation, and test DataLoaders."""
+        self._train_loader = self._build_loader(
+            self.train_split, self.train_transform, shuffle=True
+        )
+        self._val_loader = self._build_loader(
+            self.val_split, self.eval_transform, shuffle=False
+        )
+        self._test_loader = self._build_loader(
+            self.test_split, self.eval_transform, shuffle=False
         )
 
         logger.info(
-            "DataModule ready — train: %d | val: %d | device target: %s",
-            len(train_subset),
-            len(val_subset),
+            "DataModule ready — train: %d | val: %d | test: %d | device: %s",
+            len(self._train_loader.dataset),
+            len(self._val_loader.dataset),
+            len(self._test_loader.dataset),
             DEVICE,
         )
 
@@ -193,3 +210,9 @@ class DFireDataModule:
         if self._val_loader is None:
             raise RuntimeError("Call setup() before accessing val_loader.")
         return self._val_loader
+
+    @property
+    def test_loader(self) -> DataLoader:
+        if self._test_loader is None:
+            raise RuntimeError("Call setup() before accessing test_loader.")
+        return self._test_loader
