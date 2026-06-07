@@ -20,6 +20,7 @@ wandb/
 *.onnx
 *.engine
 runs/
+checkpoints/iteration4/
 
 # Generated at runtime for YOLO training
 configs/dfire_detection.yaml

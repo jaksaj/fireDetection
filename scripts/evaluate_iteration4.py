@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
 
 def load_config(config_path: Path) -> dict:
     with config_path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(config)
+        return yaml.safe_load(handle)
 
 
 def main() -> None:
