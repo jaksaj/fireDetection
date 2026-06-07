@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire & Smoke Detection AI: Neural Network Project Showcase</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <i class="fa-solid fa-fire-flame-curved logo-icon"></i>
+                <div class="brand-text">
+                    <h1>FireDetect AI</h1>
+                    <span>Iteration Showcase</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <a href="#overview" class="nav-item active" data-slide="overview">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Project Overview</span>
+                </a>
+                <a href="#iteration1" class="nav-item" data-slide="iteration1">
+                    <i class="fa-solid fa-cube"></i>
+                    <span>Iter 1: Binary CNN</span>
+                </a>
+                <a href="#iteration2" class="nav-item" data-slide="iteration2">
+                    <i class="fa-solid fa-network-wired"></i>
+                    <span>Iter 2: MobileNetV3</span>
+                </a>
+                <a href="#iteration3" class="nav-item" data-slide="iteration3">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Iter 3: Robust Model</span>
+                </a>
+                <a href="#iteration4" class="nav-item" data-slide="iteration4">
+                    <i class="fa-solid fa-expand"></i>
+                    <span>Iter 4: YOLO26 Detect</span>
+                </a>
+                <a href="#iteration5" class="nav-item" data-slide="iteration5">
+                    <i class="fa-solid fa-circle-nodes"></i>
+                    <span>Iter 5: U-Net Seg</span>
+                </a>
+                <div class="nav-separator">Analysis & Deploy</div>
+                <a href="#comparison" class="nav-item" data-slide="comparison">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Model Comparison</span>
+                </a>
+                <a href="#simulator" class="nav-item" data-slide="simulator">
+                    <i class="fa-solid fa-microchip"></i>
+                    <span>Hardware Simulator</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <p>Neural Networks College Project</p>
+                <span>Academic Year 2026</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header bar -->
+            <header class="top-bar">
+                <div class="page-title">
+                    <span id="current-slide-category">Methodology</span>
+                    <h2 id="current-slide-title">Project Overview</h2>
+                </div>
+                <div class="wandb-link-container">
+                    <span class="status-badge live">
+                        <span class="pulse-dot"></span> W&B Synced
+                    </span>
+                </div>
+            </header>
+
+            <!-- Slide Containers -->
+            <div class="slide-viewport">
+                
+                <!-- SLIDE: OVERVIEW -->
+                <section class="slide-section active" id="slide-overview">
+                    <div class="hero-grid">
+                        <div class="hero-text-card glass-card">
+                            <span class="subtitle">PROJECT SCOPE & OBJECTIVE</span>
+                            <h2>Multi-Stage Smoke & Fire Edge Intelligence</h2>
+                            <p>This project showcases the systematic evolution of computer vision models developed for forest fire and smoke monitoring on power-constrained edge computing devices. The pipeline refines from a simple binary presence classifier to an advanced semantic segmentation model that extracts pixel-level hazard boundaries.</p>
+                            
+                            <div class="stat-grid">
+                                <div class="stat-box">
+                                    <span class="stat-num">5</span>
+                                    <span class="stat-label">Iterations</span>
+                                </div>
+                                <div class="stat-box">
+                                    <span class="stat-num">96.4%</span>
+                                    <span class="stat-label">Max Pixel Acc</span>
+                                </div>
+                                <div class="stat-box">
+                                    <span class="stat-num">389K</span>
+                                    <span class="stat-label">Min Parameters</span>
+                                </div>
+                                <div class="stat-box">
+                                    <span class="stat-num">30ms</span>
+                                    <span class="stat-label">Edge Quant Latency</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="timeline-visual-card glass-card">
+                            <h3>Evolution Path</h3>
+                            <div class="horizontal-timeline">
+                                <div class="timeline-node checked" data-target="iteration1">
+                                    <div class="node-circle">1</div>
+                                    <div class="node-content">
+                                        <h4>Binary Baseline</h4>
+                                        <span>CNN Presence</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-node checked" data-target="iteration2">
+                                    <div class="node-circle">2</div>
+                                    <div class="node-content">
+                                        <h4>Multi-Class</h4>
+                                        <span>4-Class MobileNet</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-node checked" data-target="iteration3">
+                                    <div class="node-circle">3</div>
+                                    <div class="node-content">
+                                        <h4>Edge Simulation</h4>
+                                        <span>Robust + PTQ INT8</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-node checked" data-target="iteration4">
+                                    <div class="node-circle">4</div>
+                                    <div class="node-content">
+                                        <h4>Localization</h4>
+                                        <span>YOLO26 Detector</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-node checked" data-target="iteration5">
+                                    <div class="node-circle">5</div>
+                                    <div class="node-content">
+                                        <h4>Pixel Precision</h4>
+                                        <span>Lightweight U-Net</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="timeline-description">
+                                <i class="fa-solid fa-right-long-left"></i>
+                                <p><strong>Task Granularity Progression:</strong> <code>presence &rarr; class &rarr; robustness &rarr; location &rarr; pixel precision</code>. Each stage balances the trade-offs between computational cost, edge latency, and spatial detail.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="architecture-summary-grid">
+                        <div class="card glass-card">
+                            <h3><i class="fa-solid fa-database text-orange"></i> Dataset Refinement</h3>
+                            <p><strong>Iterations 1 - 4</strong> utilize the <strong>D-Fire Dataset</strong> split, which is built on YOLO bounding boxes and global class labels. This dataset maps fire and smoke scenarios, mixed cases, and neutral normal scenes.</p>
+                            <p><strong>Iteration 5</strong> transitions to the <strong>Roboflow COCO Segmentation dataset</strong> (7,110 images, polygonal masks). This dataset shift was required to feed the U-Net model with dense pixel-level masks instead of coordinates.</p>
+                        </div>
+                        <div class="card glass-card">
+                            <h3><i class="fa-solid fa-microchip text-blue"></i> Edge Optimization Pillars</h3>
+                            <ul>
+                                <li><strong>Global Average Pooling:</strong> Replaces dense layers to minimize parameter counts.</li>
+                                <li><strong>Transfer Learning:</strong> Freezing backbones to lock visual features, unfreezing top layers for differential learning rates.</li>
+                                <li><strong>Post-Training Quantization (PTQ):</strong> Quantizing models from FP32 to INT8 to simulate edge latency gains.</li>
+                                <li><strong>End-to-End Box Regression:</strong> Utilizing YOLO26n for NMS-free inference.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SLIDE: ITERATION 1 -->
+                <section class="slide-section" id="slide-iteration1">
+                    <div class="iteration-details-grid">
+                        <div class="details-left">
+                            <div class="card glass-card info-card">
+                                <span class="tag">ITERATION 1</span>
+                                <h3>Binary CNN Baseline</h3>
+                                <p class="lead">Establishing the data pipeline, training infrastructure, and foundational neural network mechanics on a binary task.</p>
+                                <div class="meta-list">
+                                    <div class="meta-item"><span class="lbl">Task:</span> <span class="val">Binary Presence (Fire vs Normal)</span></div>
+                                    <div class="meta-item"><span class="lbl">Dataset:</span> <span class="val">D-Fire YOLO Split (Collapsed)</span></div>
+                                    <div class="meta-item"><span class="lbl">Loss Function:</span> <span class="val">BCEWithLogitsLoss</span></div>
+                                    <div class="meta-item"><span class="lbl">Input Dimensions:</span> <span class="val">224 x 224 x 3</span></div>
+                                </div>
+                            </div>
+                            
+                            <div class="card glass-card metrics-card">
+                                <h3>W&B Training Summaries</h3>
+                                <div class="metrics-grid-2">
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value text-orange">93.80%</div>
+                                        <div class="gauge-label">Test Accuracy</div>
+                                    </div>
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value">0.183</div>
+                                        <div class="gauge-label">Test Loss</div>
+                                    </div>
+                                </div>
+                                <div class="validation-note">
+                                    <i class="fa-solid fa-circle-check"></i> Validation Accuracy: 93.68% | Confirming stable training convergence.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="details-right">
+                            <div class="card glass-card architecture-viz-card">
+                                <h3>Neural Network Architecture</h3>
+                                <span class="sub-label">Custom FireCNN: Scratch-built in PyTorch</span>
+                                
+                                <div class="architecture-svg-container">
+                                    <!-- Custom FireCNN SVG -->
+                                    <svg viewBox="0 0 600 280" class="arch-svg">
+                                        <defs>
+                                            <linearGradient id="fire-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#ff4b2b" />
+                                                <stop offset="100%" stop-color="#ff8100" />
+                                            </linearGradient>
+                                            <linearGradient id="pool-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#4e54c8" />
+                                                <stop offset="100%" stop-color="#8f94fb" />
+                                            </linearGradient>
+                                        </defs>
+                                        <!-- Blocks -->
+                                        <!-- Input -->
+                                        <g class="arch-node" data-tooltip="Input layer: RGB image resized to 224x224 px.">
+                                            <rect x="10" y="90" width="70" height="100" rx="6" fill="#2d3748" stroke="#4a5568" stroke-width="2"/>
+                                            <text x="45" y="140" fill="#fff" font-size="12" text-anchor="middle" font-weight="bold">Input</text>
+                                            <text x="45" y="160" fill="#a0aec0" font-size="10" text-anchor="middle">224x224x3</text>
+                                        </g>
+                                        <path d="M 80 140 L 100 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        <!-- Conv 1 -->
+                                        <g class="arch-node" data-tooltip="ConvBlock 1: Conv2d(3,32) &rarr; BatchNorm &rarr; ReLU &rarr; MaxPool.">
+                                            <rect x="100" y="80" width="80" height="120" rx="6" fill="url(#fire-grad)"/>
+                                            <text x="140" y="125" fill="#fff" font-size="12" text-anchor="middle" font-weight="bold">ConvBlock 1</text>
+                                            <text x="140" y="145" fill="#fff" font-size="10" text-anchor="middle">32 Channels</text>
+                                            <text x="140" y="165" fill="#fff" font-size="9" text-anchor="middle">112x112 px</text>
+                                        </g>
+                                        <path d="M 180 140 L 200 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        <!-- Conv 2 -->
+                                        <g class="arch-node" data-tooltip="ConvBlock 2: Conv2d(32,64) &rarr; BatchNorm &rarr; ReLU &rarr; MaxPool.">
+                                            <rect x="200" y="80" width="80" height="120" rx="6" fill="url(#fire-grad)"/>
+                                            <text x="240" y="125" fill="#fff" font-size="12" text-anchor="middle" font-weight="bold">ConvBlock 2</text>
+                                            <text x="240" y="145" fill="#fff" font-size="10" text-anchor="middle">64 Channels</text>
+                                            <text x="240" y="165" fill="#fff" font-size="9" text-anchor="middle">56x56 px</text>
+                                        </g>
+                                        <path d="M 280 140 L 300 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        <!-- Conv 3 & 4 (Stacked) -->
+                                        <g class="arch-node" data-tooltip="ConvBlocks 3 & 4: Progressively scaling channels 64 &rarr; 128 &rarr; 256. Final size 14x14.">
+                                            <rect x="300" y="80" width="80" height="120" rx="6" fill="url(#fire-grad)"/>
+                                            <text x="340" y="125" fill="#fff" font-size="12" text-anchor="middle" font-weight="bold">ConvBlocks 3-4</text>
+                                            <text x="340" y="145" fill="#fff" font-size="10" text-anchor="middle">256 Channels</text>
+                                            <text x="340" y="165" fill="#fff" font-size="9" text-anchor="middle">14x14 px</text>
+                                        </g>
+                                        <path d="M 380 140 L 400 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        <!-- Global Pool -->
+                                        <g class="arch-node" data-tooltip="AdaptiveAvgPool2d: Collapses spatial dimensions to 1x1 to prevent fully-connected weight explosion.">
+                                            <rect x="400" y="95" width="70" height="90" rx="6" fill="url(#pool-grad)"/>
+                                            <text x="435" y="130" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Adaptive Pool</text>
+                                            <text x="435" y="150" fill="#fff" font-size="10" text-anchor="middle">1x1x256</text>
+                                        </g>
+                                        <path d="M 470 140 L 490 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        <!-- Classifier Linear -->
+                                        <g class="arch-node" data-tooltip="Linear Classifier: Linear(256, 1) outputting binary raw logit.">
+                                            <rect x="490" y="105" width="80" height="70" rx="6" fill="#e53e3e"/>
+                                            <text x="530" y="135" fill="#fff" font-size="12" text-anchor="middle" font-weight="bold">Linear Head</text>
+                                            <text x="530" y="155" fill="#fff" font-size="10" text-anchor="middle">1 Logit</text>
+                                        </g>
+                                        <!-- Marker Defs -->
+                                        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#718096"/>
+                                        </marker>
+                                    </svg>
+                                </div>
+                                <div class="arch-notes">
+                                    <p><i class="fa-solid fa-circle-info"></i> Custom initialization utilizes <strong>Kaiming Normal</strong> for convolutional kernels and <strong>Xavier Uniform</strong> for the linear head. The global pooling layer makes this scratch model extremely lightweight (~389k parameters) and edge-friendly.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="iteration-critique-grid">
+                        <div class="card glass-card critique-pro">
+                            <h3><i class="fa-solid fa-thumbs-up"></i> Advantages & Milestones</h3>
+                            <ul>
+                                <li><strong>Minimal Footprint:</strong> Model file is just ~1.5 MiB, easily fitting in cache on low-cost CPUs.</li>
+                                <li><strong>Numerical Stability:</strong> Binary cross entropy configured with raw logits to prevent floating-point underflow.</li>
+                                <li><strong>Validated Pipeline:</strong> Verified correct data reading, model creation, checkpointing, and evaluation scripts.</li>
+                            </ul>
+                        </div>
+                        <div class="card glass-card critique-con">
+                            <h3><i class="fa-solid fa-triangle-exclamation"></i> Shortcomings & Challenges</h3>
+                            <ul>
+                                <li><strong>Binary Limitation:</strong> Cannot separate smoke from fire. Smoke-only and mixed scenes are grouped into "fire presence".</li>
+                                <li><strong>Low Real-world Semantic Value:</strong> A forest monitoring engine needs to alert specifically if smoke exists without fire (early warning).</li>
+                                <li><strong>Edge Case Vulnerability:</strong> The baseline custom CNN is prone to false alarms on clouds, fog, and sun glare due to lack of deep semantic features.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SLIDE: ITERATION 2 -->
+                <section class="slide-section" id="slide-iteration2">
+                    <div class="iteration-details-grid">
+                        <div class="details-left">
+                            <div class="card glass-card info-card">
+                                <span class="tag">ITERATION 2</span>
+                                <h3>4-Class Transfer Learning</h3>
+                                <p class="lead">Expanding visual granularity using pretrained backbones optimized for mobile CPU pipelines.</p>
+                                <div class="meta-list">
+                                    <div class="meta-item"><span class="lbl">Task:</span> <span class="val">4-Class Classification (Neither, Fire, Smoke, Both)</span></div>
+                                    <div class="meta-item"><span class="lbl">Dataset:</span> <span class="val">D-Fire 4-Class Derived Split</span></div>
+                                    <div class="meta-item"><span class="lbl">Loss Function:</span> <span class="val">Categorical CrossEntropy (Weighted)</span></div>
+                                    <div class="meta-item"><span class="lbl">Model Backbone:</span> <span class="val">MobileNetV3-Small (Pretrained ImageNet)</span></div>
+                                </div>
+                            </div>
+                            
+                            <div class="card glass-card metrics-card">
+                                <h3>W&B Training Summaries</h3>
+                                <div class="metrics-grid-2">
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value text-orange">89.16%</div>
+                                        <div class="gauge-label">Best Val Accuracy</div>
+                                    </div>
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value">85.25%</div>
+                                        <div class="gauge-label">Finetune Val F1 Macro</div>
+                                    </div>
+                                </div>
+                                <div class="class-breakdown">
+                                    <h4>Test F1-Score Breakdown:</h4>
+                                    <div class="progress-bar-container">
+                                        <div class="lbl">Neither (Normal Scenes)</div>
+                                        <div class="bar-bg"><div class="bar-fill" style="width: 94.8%;"></div></div>
+                                        <div class="val">94.83%</div>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="lbl">Only Fire</div>
+                                        <div class="bar-bg"><div class="bar-fill orange" style="width: 68.7%;"></div></div>
+                                        <div class="val">68.78%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="details-right">
+                            <div class="card glass-card architecture-viz-card">
+                                <h3>Neural Network Architecture</h3>
+                                <span class="sub-label">MobileNetV3-Small: Two-Stage Training Setup</span>
+                                
+                                <div class="architecture-svg-container">
+                                    <!-- MobileNetV3 Transfer SVG -->
+                                    <svg viewBox="0 0 600 280" class="arch-svg">
+                                        <defs>
+                                            <linearGradient id="mobilenet-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#3182ce" />
+                                                <stop offset="100%" stop-color="#4299e1" />
+                                            </linearGradient>
+                                            <linearGradient id="head-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#38a169" />
+                                                <stop offset="100%" stop-color="#48bb78" />
+                                            </linearGradient>
+                                        </defs>
+                                        <!-- Inputs -->
+                                        <g class="arch-node" data-tooltip="Input image (224x224x3).">
+                                            <rect x="10" y="90" width="60" height="100" rx="6" fill="#2d3748" stroke="#4a5568" stroke-width="2"/>
+                                            <text x="40" y="145" fill="#fff" font-size="11" text-anchor="middle">Input</text>
+                                        </g>
+                                        <path d="M 70 140 L 90 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- Frozen Backbone Block -->
+                                        <g class="arch-node" data-tooltip="MobileNetV3 Feature Extractor: Frozen during first phase to lock pretrained weights.">
+                                            <rect x="90" y="65" width="220" height="150" rx="6" fill="url(#mobilenet-grad)" stroke="#2b6cb0" stroke-width="2"/>
+                                            <!-- Sub elements -->
+                                            <rect x="100" y="95" width="90" height="90" rx="4" fill="#2a4365" stroke="#4299e1"/>
+                                            <text x="145" y="140" fill="#fff" font-size="10" text-anchor="middle">Conv2d & Bnecks</text>
+                                            <text x="145" y="155" fill="#90cdf4" font-size="9" text-anchor="middle">Frozen Features</text>
+                                            
+                                            <!-- Top blocks (unfrozen in step 2) -->
+                                            <rect x="205" y="95" width="90" height="90" rx="4" fill="#2b6cb0" stroke="#90cdf4" stroke-dasharray="3,3"/>
+                                            <text x="250" y="140" fill="#fff" font-size="10" text-anchor="middle">Top 3 Blocks</text>
+                                            <text x="250" y="155" fill="#e2e8f0" font-size="8" text-anchor="middle">Unfrozen Finetune</text>
+                                            
+                                            <text x="200" y="85" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">MobileNetV3 Backbone</text>
+                                        </g>
+                                        <path d="M 310 140 L 330 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- Linear Classifier Head -->
+                                        <g class="arch-node" data-tooltip="Classifier Head: Custom Linear(576,256) &rarr; Hardswish &rarr; Dropout(0.2) &rarr; Linear(256,4).">
+                                            <rect x="330" y="65" width="240" height="150" rx="6" fill="url(#head-grad)" stroke="#276749" stroke-width="2"/>
+                                            
+                                            <rect x="345" y="95" width="70" height="90" rx="4" fill="#22543d"/>
+                                            <text x="380" y="135" fill="#fff" font-size="10" text-anchor="middle">FC 1</text>
+                                            <text x="380" y="150" fill="#a3e635" font-size="9" text-anchor="middle">576 &rarr; 256</text>
+                                            
+                                            <rect x="425" y="95" width="55" height="90" rx="4" fill="#22543d"/>
+                                            <text x="452" y="135" fill="#fff" font-size="10" text-anchor="middle">Drop</text>
+                                            <text x="452" y="150" fill="#cbd5e0" font-size="9" text-anchor="middle">p=0.2</text>
+                                            
+                                            <rect x="490" y="95" width="70" height="90" rx="4" fill="#2f855a"/>
+                                            <text x="525" y="135" fill="#fff" font-size="10" text-anchor="middle">FC 2</text>
+                                            <text x="525" y="150" fill="#fef08a" font-size="9" text-anchor="middle">256 &rarr; 4</text>
+                                            
+                                            <text x="450" y="85" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Classification Head</text>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="arch-notes">
+                                    <p><i class="fa-solid fa-gears"></i> <strong>Training Strategy:</strong> Phase 1 freezes the backbone (only head parameters update). Phase 2 unfreezes the top 3 convolutional blocks of MobileNetV3-Small. Differential learning rates are used (1e-5 backbone, 1e-4 classifier) to prevent catastrophic forgetting.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="iteration-critique-grid">
+                        <div class="card glass-card critique-pro">
+                            <h3><i class="fa-solid fa-thumbs-up"></i> Advantages & Milestones</h3>
+                            <ul>
+                                <li><strong>Semantic Expansion:</strong> Supports separating smoke from fire, which is key for early alarms.</li>
+                                <li><strong>Deep Feature Learning:</strong> Pretrained weights allow mapping of subtle shapes, fog, and light reflection.</li>
+                                <li><strong>Compact Backbone:</strong> MobileNetV3-Small uses squeeze-and-excitation modules with hard-swish activations for low latency.</li>
+                            </ul>
+                        </div>
+                        <div class="card glass-card critique-con">
+                            <h3><i class="fa-solid fa-triangle-exclamation"></i> Shortcomings & Challenges</h3>
+                            <ul>
+                                <li><strong>Class-wise Performance Gap:</strong> The "Only Fire" class scored a lower F1 score (68.78%) compared to "Neither" (94.83%).</li>
+                                <li><strong>Imbalance Instability:</strong> The dataset has much fewer fire-only samples. Standard loss, even weighted, struggles to align minority boundaries.</li>
+                                <li><strong>Real-world Brittle Boundaries:</strong> Struggles with environmental edge cases like smoke-colored morning mist, dust, or moving clouds.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SLIDE: ITERATION 3 -->
+                <section class="slide-section" id="slide-iteration3">
+                    <div class="iteration-details-grid">
+                        <div class="details-left">
+                            <div class="card glass-card info-card">
+                                <span class="tag">ITERATION 3</span>
+                                <h3>Robustness & Edge Simulation</h3>
+                                <p class="lead">Integrating data augmentations and learning rate decay to prevent overfitting on mist, haze, and lighting variations.</p>
+                                <div class="meta-list">
+                                    <div class="meta-item"><span class="lbl">Task:</span> <span class="val">4-Class Classification (Generalization Focus)</span></div>
+                                    <div class="meta-item"><span class="lbl">Augmentations:</span> <span class="val">Albumentations (RandomFog, CLAHE, Jitter)</span></div>
+                                    <div class="meta-item"><span class="lbl">Learning Scheduler:</span> <span class="val">CosineAnnealingLR</span></div>
+                                    <div class="meta-item"><span class="lbl">Edge Optimization:</span> <span class="val">Post-Training Quantization (PTQ) to INT8</span></div>
+                                </div>
+                            </div>
+                            
+                            <div class="card glass-card metrics-card">
+                                <h3>W&B Training Summaries</h3>
+                                <div class="metrics-grid-2">
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value text-orange">90.25%</div>
+                                        <div class="gauge-label">Test Accuracy</div>
+                                    </div>
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value">86.72%</div>
+                                        <div class="gauge-label">Test F1 Macro</div>
+                                    </div>
+                                </div>
+                                <div class="quantization-stats">
+                                    <h4>INT8 Quantization Output:</h4>
+                                    <div class="stats-row">
+                                        <span class="lbl">FP32 Model Size:</span>
+                                        <span class="val text-blue">4.1 MiB</span>
+                                    </div>
+                                    <div class="stats-row">
+                                        <span class="lbl">INT8 Quantized Size:</span>
+                                        <span class="val text-green">1.1 MiB (&minus;73%)</span>
+                                    </div>
+                                    <div class="stats-row">
+                                        <span class="lbl">Inference Speedup:</span>
+                                        <span class="val text-orange">2.8x on CPU</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="details-right">
+                            <div class="card glass-card architecture-viz-card">
+                                <h3>Robust Training & Quantization Pipeline</h3>
+                                <span class="sub-label">Albumentations &rarr; Cosine Annealing &rarr; INT8 Quantization</span>
+                                
+                                <div class="architecture-svg-container">
+                                    <!-- Iteration 3 Pipeline SVG -->
+                                    <svg viewBox="0 0 600 280" class="arch-svg">
+                                        <defs>
+                                            <linearGradient id="aug-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#b83280" />
+                                                <stop offset="100%" stop-color="#d53f8c" />
+                                            </linearGradient>
+                                            <linearGradient id="int8-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#d69e2e" />
+                                                <stop offset="100%" stop-color="#ecc94b" />
+                                            </linearGradient>
+                                        </defs>
+                                        
+                                        <!-- Inputs -->
+                                        <g class="arch-node" data-tooltip="Raw Training Image.">
+                                            <rect x="10" y="95" width="50" height="90" rx="4" fill="#2d3748" stroke="#4a5568"/>
+                                            <text x="35" y="145" fill="#fff" font-size="10" text-anchor="middle">Raw Image</text>
+                                        </g>
+                                        <path d="M 60 140 L 75 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- Albumentations Block -->
+                                        <g class="arch-node" data-tooltip="Albumentations Pipeline: Simulates environmental fog, lighting contrast (CLAHE), and camera motion blur.">
+                                            <rect x="75" y="75" width="130" height="130" rx="6" fill="url(#aug-grad)" stroke="#97266d" stroke-width="2"/>
+                                            <text x="140" y="105" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Albumentations</text>
+                                            <text x="140" y="130" fill="#fbb6ce" font-size="9" text-anchor="middle">&bull; RandomFog</text>
+                                            <text x="140" y="150" fill="#fbb6ce" font-size="9" text-anchor="middle">&bull; CLAHE Contrast</text>
+                                            <text x="140" y="170" fill="#fbb6ce" font-size="9" text-anchor="middle">&bull; MotionBlur / Jitter</text>
+                                        </g>
+                                        <path d="M 205 140 L 220 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- MobileNetV3 Fit -->
+                                        <g class="arch-node" data-tooltip="MobileNetV3 network training with a cosine learning rate scheduler.">
+                                            <rect x="220" y="75" width="120" height="130" rx="6" fill="#3182ce" stroke="#2b6cb0" stroke-width="2"/>
+                                            <text x="280" y="105" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">MobileNetV3</text>
+                                            <text x="280" y="135" fill="#bee3f8" font-size="9" text-anchor="middle">Cosine LR Decay</text>
+                                            <text x="280" y="155" fill="#90cdf4" font-size="8" text-anchor="middle">FP32 (4.1 MiB)</text>
+                                        </g>
+                                        <path d="M 340 140 L 355 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- PTQ Calibration -->
+                                        <g class="arch-node" data-tooltip="Post-Training Quantization: Calibrates weights and activations to INT8 scale using representative test images.">
+                                            <rect x="355" y="75" width="100" height="130" rx="6" fill="#2c5282" stroke="#2b6cb0" stroke-width="2"/>
+                                            <text x="405" y="105" fill="#fff" font-size="11" font-weight="bold" text-anchor="middle">PTQ Calibration</text>
+                                            <text x="405" y="135" fill="#cbd5e0" font-size="9" text-anchor="middle">Tensor</text>
+                                            <text x="405" y="155" fill="#cbd5e0" font-size="9" text-anchor="middle">Min/Max scale</text>
+                                        </g>
+                                        <path d="M 455 140 L 470 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- INT8 Quantized Model -->
+                                        <g class="arch-node" data-tooltip="Quantized INT8 Model: Ready for low-power edge CPU execution. Size optimized to 1.1 MiB.">
+                                            <rect x="470" y="75" width="115" height="130" rx="6" fill="url(#int8-grad)" stroke="#b7791f" stroke-width="2"/>
+                                            <text x="527" y="105" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Quantized</text>
+                                            <text x="527" y="130" fill="#fff" font-size="11" font-weight="bold" text-anchor="middle">INT8 Model</text>
+                                            <text x="527" y="155" fill="#fef08a" font-size="10" text-anchor="middle">1.1 MiB size</text>
+                                            <text x="527" y="175" fill="#fef08a" font-size="8" text-anchor="middle">(ARM Neon Friendly)</text>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="arch-notes">
+                                    <p><i class="fa-solid fa-chart-line"></i> The cosine annealing learning rate scheduler gradually drops the learning rate to zero following a cosine curve, allowing the model to settle in smooth local minima. This stabilizes weights, facilitating Post-Training Quantization (PTQ) to INT8 with minimal accuracy loss.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="iteration-critique-grid">
+                        <div class="card glass-card critique-pro">
+                            <h3><i class="fa-solid fa-thumbs-up"></i> Advantages & Milestones</h3>
+                            <ul>
+                                <li><strong>Generalization Gain:</strong> Test accuracy rose to 90.25%, and test F1 macro increased to 86.72%, indicating real robustness.</li>
+                                <li><strong>Memory Shrinkage:</strong> Model footprint dropped to 1.1 MiB, fitting easily in microcontroller SRAM or low-end CPU caches.</li>
+                                <li><strong>Edge Optimization Demo:</strong> Proved that applying INT8 quantization reduces power consumption and speeds up integer execution units.</li>
+                            </ul>
+                        </div>
+                        <div class="card glass-card critique-con">
+                            <h3><i class="fa-solid fa-triangle-exclamation"></i> Shortcomings & Challenges</h3>
+                            <ul>
+                                <li><strong>Spatial Blindness:</strong> The model classifies the overall frame but does not reveal *where* the fire/smoke is.</li>
+                                <li><strong>Edge Box Boundary Lack:</strong> Does not calculate a bounding box or outline of the fire, making it hard to target suppression systems.</li>
+                                <li><strong>Loss of Localized Context:</strong> Dense global pooling throws away pixel spatial relations.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SLIDE: ITERATION 4 -->
+                <section class="slide-section" id="slide-iteration4">
+                    <div class="iteration-details-grid">
+                        <div class="details-left">
+                            <div class="card glass-card info-card">
+                                <span class="tag">ITERATION 4</span>
+                                <h3>Fire & Smoke Object Detection</h3>
+                                <p class="lead">Adding spatial awareness by regressing object bounding boxes and classifications simultaneously in real time.</p>
+                                <div class="meta-list">
+                                    <div class="meta-item"><span class="lbl">Task:</span> <span class="val">Real-Time Object Detection (Box Bounding)</span></div>
+                                    <div class="meta-item"><span class="lbl">Model Backbone:</span> <span class="val">YOLO26n (Ultralytics Architecture)</span></div>
+                                    <div class="meta-item"><span class="lbl">Export Formats:</span> <span class="val">ONNX Engine / TensorRT Engine</span></div>
+                                    <div class="meta-item"><span class="lbl">Input Dimensions:</span> <span class="val">640 x 640 x 3</span></div>
+                                </div>
+                            </div>
+                            
+                            <div class="card glass-card metrics-card">
+                                <h3>W&B Training Summaries</h3>
+                                <div class="metrics-grid-2">
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value text-orange">75.24%</div>
+                                        <div class="gauge-label">mAP50</div>
+                                    </div>
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value">44.29%</div>
+                                        <div class="gauge-label">mAP50-95</div>
+                                    </div>
+                                </div>
+                                <div class="class-breakdown">
+                                    <h4>Inference Performance:</h4>
+                                    <div class="progress-bar-container">
+                                        <div class="lbl">Precision (Box correctness)</div>
+                                        <div class="bar-bg"><div class="bar-fill" style="width: 75.9%;"></div></div>
+                                        <div class="val">75.90%</div>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="lbl">Recall (Hazards detected)</div>
+                                        <div class="bar-bg"><div class="bar-fill orange" style="width: 69.1%;"></div></div>
+                                        <div class="val">69.10%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="details-right">
+                            <div class="card glass-card architecture-viz-card">
+                                <h3>YOLO26n Single-Shot Object Detector</h3>
+                                <span class="sub-label">Anchor-Free, End-to-End NMS-Free Detection</span>
+                                
+                                <div class="architecture-svg-container">
+                                    <!-- YOLO26 SVG -->
+                                    <svg viewBox="0 0 600 280" class="arch-svg">
+                                        <defs>
+                                            <linearGradient id="backbone-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#4a5568" />
+                                                <stop offset="100%" stop-color="#718096" />
+                                            </linearGradient>
+                                            <linearGradient id="neck-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#805ad5" />
+                                                <stop offset="100%" stop-color="#b794f4" />
+                                            </linearGradient>
+                                            <linearGradient id="yolohead-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#dd6b20" />
+                                                <stop offset="100%" stop-color="#f6ad55" />
+                                            </linearGradient>
+                                        </defs>
+                                        
+                                        <!-- Inputs -->
+                                        <g class="arch-node" data-tooltip="Input frame: Larger 640x640 resolution to resolve small far-away smoke plumes.">
+                                            <rect x="10" y="80" width="70" height="120" rx="6" fill="#2d3748" stroke="#4a5568" stroke-width="2"/>
+                                            <text x="45" y="135" fill="#fff" font-size="12" text-anchor="middle" font-weight="bold">Input</text>
+                                            <text x="45" y="155" fill="#a0aec0" font-size="10" text-anchor="middle">640x640x3</text>
+                                        </g>
+                                        <path d="M 80 140 L 95 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- Backbone -->
+                                        <g class="arch-node" data-tooltip="CSPDarknet Backbone: Extracts multi-scale visual features via spatial downscaling.">
+                                            <rect x="95" y="70" width="130" height="140" rx="6" fill="url(#backbone-grad)" stroke="#4a5568" stroke-width="2"/>
+                                            <text x="160" y="110" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Backbone</text>
+                                            <text x="160" y="130" fill="#e2e8f0" font-size="10" text-anchor="middle">CSPDarknet</text>
+                                            <text x="160" y="155" fill="#cbd5e0" font-size="9" text-anchor="middle">P3, P4, P5 Scales</text>
+                                            <text x="160" y="175" fill="#a0aec0" font-size="8" text-anchor="middle">(Strides 8, 16, 32)</text>
+                                        </g>
+                                        <path d="M 225 140 L 245 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- Neck (FPN/PAN) -->
+                                        <g class="arch-node" data-tooltip="FPN / PANet Neck: Fuses high-level semantic features with low-level spatial features for robust scale localization.">
+                                            <rect x="245" y="70" width="130" height="140" rx="6" fill="url(#neck-grad)" stroke="#6b46c1" stroke-width="2"/>
+                                            <text x="310" y="110" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Neck (PANet)</text>
+                                            <text x="310" y="135" fill="#e9d8fd" font-size="10" text-anchor="middle">Feature Fusion</text>
+                                            <text x="310" y="160" fill="#b794f4" font-size="8" text-anchor="middle">Top-Down &</text>
+                                            <text x="310" y="175" fill="#b794f4" font-size="8" text-anchor="middle">Bottom-Up Paths</text>
+                                        </g>
+                                        <path d="M 375 140 L 395 140" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- Head (NMS-free Dual heads) -->
+                                        <g class="arch-node" data-tooltip="Detection Heads: Anchors-free design. Includes separate branches for boundary box regression and class labels.">
+                                            <rect x="395" y="70" width="195" height="140" rx="6" fill="url(#yolohead-grad)" stroke="#c05621" stroke-width="2"/>
+                                            <text x="492" y="105" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Decoupled Heads</text>
+                                            
+                                            <rect x="410" y="125" width="75" height="70" rx="4" fill="#7b341e"/>
+                                            <text x="447" y="150" fill="#fff" font-size="10" text-anchor="middle">Regression</text>
+                                            <text x="447" y="165" fill="#ffb7a2" font-size="8" text-anchor="middle">(x,y,w,h + Cls)</text>
+                                            
+                                            <rect x="500" y="125" width="75" height="70" rx="4" fill="#7b341e"/>
+                                            <text x="537" y="150" fill="#fff" font-size="10" text-anchor="middle">NMS-Free</text>
+                                            <text x="537" y="165" fill="#ffb7a2" font-size="8" text-anchor="middle">Direct Output</text>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="arch-notes">
+                                    <p><i class="fa-solid fa-rocket"></i> YOLO26n leverages a decoupled architecture. Instead of evaluating candidate anchor templates, it estimates regression coordinates directly for each cell. This reduces computational latency, enabling fast GPU/NPU operations.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="iteration-critique-grid">
+                        <div class="card glass-card critique-pro">
+                            <h3><i class="fa-solid fa-thumbs-up"></i> Advantages & Milestones</h3>
+                            <ul>
+                                <li><strong>Localization Capability:</strong> Pinpoints bounding boxes around smoke plumes and fires, giving real coordinates.</li>
+                                <li><strong>NMS Bottleneck Cut:</strong> Direct end-to-end output eliminates classic Non-Maximum Suppression overhead.</li>
+                                <li><strong>Export Versatility:</strong> Direct conversion pathways to ONNX and TensorRT optimized for NVIDIA Jetson deployment.</li>
+                            </ul>
+                        </div>
+                        <div class="card glass-card critique-con">
+                            <h3><i class="fa-solid fa-triangle-exclamation"></i> Shortcomings & Challenges</h3>
+                            <ul>
+                                <li><strong>Box Boundary Approximation:</strong> Square boxes capture a large amount of irrelevant empty space around amorphous, drifting smoke shapes.</li>
+                                <li><strong>High Computing Costs:</strong> Inputting 640x640 frames requires ~2.57M parameters, raising hardware requirements significantly.</li>
+                                <li><strong>Small Target Deficit:</strong> Struggles to identify far-away thin smoke trails where the box features disappear under downscaling.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SLIDE: ITERATION 5 -->
+                <section class="slide-section" id="slide-iteration5">
+                    <div class="iteration-details-grid">
+                        <div class="details-left">
+                            <div class="card glass-card info-card">
+                                <span class="tag">ITERATION 5</span>
+                                <h3>Pixel-Level Semantic Segmentation</h3>
+                                <p class="lead">Achieving maximum scene comprehension by isolating the precise visual contours of smoke and fire.</p>
+                                <div class="meta-list">
+                                    <div class="meta-item"><span class="lbl">Task:</span> <span class="val">Multi-Class Semantic Segmentation</span></div>
+                                    <div class="meta-item"><span class="lbl">Dataset Shift:</span> <span class="val">Roboflow COCO Masks (7,110 Images)</span></div>
+                                    <div class="meta-item"><span class="lbl">Loss Function:</span> <span class="val">Combined Dice Loss + Focal Loss</span></div>
+                                    <div class="meta-item"><span class="lbl">Model Architecture:</span> <span class="val">Lightweight U-Net (32 to 512 channels)</span></div>
+                                    <div class="meta-item"><span class="lbl">Mixed Precision:</span> <span class="val">torch.cuda.amp enabled (FP16/FP32)</span></div>
+                                </div>
+                            </div>
+                            
+                            <div class="card glass-card metrics-card">
+                                <h3>W&B Training Summaries</h3>
+                                <div class="metrics-grid-3">
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value text-orange">85.22%</div>
+                                        <div class="gauge-label">Test mIoU</div>
+                                    </div>
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value">91.81%</div>
+                                        <div class="gauge-label">Test Dice Coeff</div>
+                                    </div>
+                                    <div class="metric-gauge">
+                                        <div class="gauge-value">96.36%</div>
+                                        <div class="gauge-label">Pixel Accuracy</div>
+                                    </div>
+                                </div>
+                                <div class="class-breakdown">
+                                    <h4>Intersection-over-Union (IoU) per Class:</h4>
+                                    <div class="progress-bar-container">
+                                        <div class="lbl">Background</div>
+                                        <div class="bar-bg"><div class="bar-fill" style="width: 96.1%;"></div></div>
+                                        <div class="val">96.18%</div>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="lbl">Fire class</div>
+                                        <div class="bar-bg"><div class="bar-fill orange" style="width: 83.2%;"></div></div>
+                                        <div class="val">83.23%</div>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="lbl">Smoke class</div>
+                                        <div class="bar-bg"><div class="bar-fill gray" style="width: 76.2%;"></div></div>
+                                        <div class="val">76.26%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="details-right">
+                            <div class="card glass-card architecture-viz-card">
+                                <h3>U-Net Encoder-Decoder Architecture</h3>
+                                <span class="sub-label">Lightweight PyTorch implementation with Skip Connections</span>
+                                
+                                <div class="architecture-svg-container">
+                                    <!-- U-Net Architecture SVG -->
+                                    <svg viewBox="0 0 600 290" class="arch-svg">
+                                        <defs>
+                                            <linearGradient id="unet-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#3182ce" />
+                                                <stop offset="100%" stop-color="#4299e1" />
+                                            </linearGradient>
+                                            <linearGradient id="unet-green" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#38a169" />
+                                                <stop offset="100%" stop-color="#48bb78" />
+                                            </linearGradient>
+                                            <linearGradient id="unet-red" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#e53e3e" />
+                                                <stop offset="100%" stop-color="#f56565" />
+                                            </linearGradient>
+                                        </defs>
+                                        
+                                        <!-- ENCODER (Left) -->
+                                        <!-- Enc 1 (32) -->
+                                        <g class="arch-node" data-tooltip="DoubleConv 1: 3 &rarr; 32 channels. Size: 256x256">
+                                            <rect x="20" y="40" width="60" height="40" rx="4" fill="url(#unet-blue)" stroke="#2b6cb0"/>
+                                            <text x="50" y="60" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">DoubleConv</text>
+                                            <text x="50" y="72" fill="#e2e8f0" font-size="8" text-anchor="middle">32 Ch | 256²</text>
+                                        </g>
+                                        <!-- Enc 2 (64) -->
+                                        <g class="arch-node" data-tooltip="DownBlock 1: MaxPool &rarr; DoubleConv. 32 &rarr; 64 channels. Size: 128x128">
+                                            <rect x="40" y="90" width="60" height="40" rx="4" fill="url(#unet-blue)" stroke="#2b6cb0"/>
+                                            <text x="70" y="110" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">Down 64</text>
+                                            <text x="70" y="122" fill="#e2e8f0" font-size="8" text-anchor="middle">128²</text>
+                                        </g>
+                                        <!-- Enc 3 (128) -->
+                                        <g class="arch-node" data-tooltip="DownBlock 2: MaxPool &rarr; DoubleConv. 64 &rarr; 128 channels. Size: 64x64">
+                                            <rect x="60" y="140" width="60" height="40" rx="4" fill="url(#unet-blue)" stroke="#2b6cb0"/>
+                                            <text x="90" y="160" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">Down 128</text>
+                                            <text x="90" y="172" fill="#e2e8f0" font-size="8" text-anchor="middle">64²</text>
+                                        </g>
+                                        <!-- Enc 4 (256) -->
+                                        <g class="arch-node" data-tooltip="DownBlock 3: MaxPool &rarr; DoubleConv. 128 &rarr; 256 channels. Size: 32x32">
+                                            <rect x="80" y="190" width="60" height="40" rx="4" fill="url(#unet-blue)" stroke="#2b6cb0"/>
+                                            <text x="110" y="210" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">Down 256</text>
+                                            <text x="110" y="222" fill="#e2e8f0" font-size="8" text-anchor="middle">32²</text>
+                                        </g>
+                                        
+                                        <!-- BOTTLENECK -->
+                                        <!-- Bottleneck (512) -->
+                                        <g class="arch-node" data-tooltip="Bottleneck DownBlock 4: MaxPool &rarr; DoubleConv. 256 &rarr; 512 channels. Size: 16x16">
+                                            <rect x="270" y="235" width="70" height="45" rx="4" fill="url(#unet-red)" stroke="#b7791f"/>
+                                            <text x="305" y="255" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">Bottleneck 512</text>
+                                            <text x="305" y="268" fill="#fff" font-size="8" text-anchor="middle">16x16 px</text>
+                                        </g>
+                                        
+                                        <!-- DECODER (Right) -->
+                                        <!-- Dec 4 (256) -->
+                                        <g class="arch-node" data-tooltip="UpBlock 4: Upsample(bilinear) &rarr; Concat with Enc4 features &rarr; DoubleConv. 512+256 &rarr; 256 channels. Size: 32x32">
+                                            <rect x="460" y="190" width="60" height="40" rx="4" fill="url(#unet-green)" stroke="#276749"/>
+                                            <text x="490" y="210" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">Up 256</text>
+                                            <text x="490" y="222" fill="#e2e8f0" font-size="8" text-anchor="middle">32²</text>
+                                        </g>
+                                        <!-- Dec 3 (128) -->
+                                        <g class="arch-node" data-tooltip="UpBlock 3: Upsample &rarr; Concat with Enc3 &rarr; DoubleConv. 256+128 &rarr; 128 channels. Size: 64x64">
+                                            <rect x="480" y="140" width="60" height="40" rx="4" fill="url(#unet-green)" stroke="#276749"/>
+                                            <text x="510" y="160" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">Up 128</text>
+                                            <text x="510" y="172" fill="#e2e8f0" font-size="8" text-anchor="middle">64²</text>
+                                        </g>
+                                        <!-- Dec 2 (64) -->
+                                        <g class="arch-node" data-tooltip="UpBlock 2: Upsample &rarr; Concat with Enc2 &rarr; DoubleConv. 128+64 &rarr; 64 channels. Size: 128x128">
+                                            <rect x="500" y="90" width="60" height="40" rx="4" fill="url(#unet-green)" stroke="#276749"/>
+                                            <text x="530" y="110" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">Up 64</text>
+                                            <text x="530" y="122" fill="#e2e8f0" font-size="8" text-anchor="middle">128²</text>
+                                        </g>
+                                        <!-- Dec 1 (32) -->
+                                        <g class="arch-node" data-tooltip="UpBlock 1: Upsample &rarr; Concat with Enc1 &rarr; DoubleConv. 64+32 &rarr; 32 channels. Size: 256x256">
+                                            <rect x="520" y="40" width="60" height="40" rx="4" fill="url(#unet-green)" stroke="#276749"/>
+                                            <text x="550" y="60" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">Up 32</text>
+                                            <text x="550" y="72" fill="#e2e8f0" font-size="8" text-anchor="middle">256²</text>
+                                        </g>
+                                        
+                                        <!-- Output projection -->
+                                        <path d="M 550 40 Q 550 15 570 15" fill="none" stroke="#718096" stroke-width="2" marker-end="url(#arrow)"/>
+                                        <g class="arch-node" data-tooltip="Output layer: Conv2d (1x1 kernel) mapping 32 feature channels to 3 class channels (background, fire, smoke).">
+                                            <rect x="540" y="5" width="55" height="25" rx="3" fill="#e53e3e"/>
+                                            <text x="567" y="20" fill="#fff" font-size="8" text-anchor="middle" font-weight="bold">Conv 1x1 (3 Ch)</text>
+                                        </g>
+                                        
+                                        <!-- SKIP CONNECTIONS (Dotted Arrows) -->
+                                        <!-- Skip 1: 32 -->
+                                        <path d="M 80 60 L 520 60" stroke="#ecc94b" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-yellow)"/>
+                                        <!-- Skip 2: 64 -->
+                                        <path d="M 100 110 L 500 110" stroke="#ecc94b" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-yellow)"/>
+                                        <!-- Skip 3: 128 -->
+                                        <path d="M 120 160 L 480 160" stroke="#ecc94b" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-yellow)"/>
+                                        <!-- Skip 4: 256 -->
+                                        <path d="M 140 210 L 460 210" stroke="#ecc94b" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrow-yellow)"/>
+                                        
+                                        <!-- Path lines from Down elements to next -->
+                                        <path d="M 50 80 L 50 90" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+                                        <path d="M 70 130 L 70 140" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+                                        <path d="M 90 180 L 90 190" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+                                        <path d="M 110 230 L 110 240 Q 110 257 270 257" fill="none" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- Decoder path lines -->
+                                        <path d="M 340 257 Q 490 257 490 230" fill="none" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+                                        <path d="M 490 190 L 490 180" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+                                        <path d="M 510 140 L 510 130" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+                                        <path d="M 530 90 L 530 80" stroke="#718096" stroke-width="1.5" marker-end="url(#arrow)"/>
+                                        
+                                        <!-- Arrow Marker definitions -->
+                                        <marker id="arrow-yellow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ecc94b"/>
+                                        </marker>
+                                    </svg>
+                                </div>
+                                <div class="arch-notes">
+                                    <p><i class="fa-solid fa-code-fork"></i> <strong>Skip Connections:</strong> Propagate fine-grained spatial features directly from the contracting path to the expanding path. This prevents fine detail loss that occurs during max-pooling, which is critical for mapping thin, wispy smoke trails.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="iteration-critique-grid">
+                        <div class="card glass-card critique-pro">
+                            <h3><i class="fa-solid fa-thumbs-up"></i> Advantages & Milestones</h3>
+                            <ul>
+                                <li><strong>High Spatial Precision:</strong> Generates exact mask contours, enabling spread analysis and flame perimeter sizing.</li>
+                                <li><strong>Class Balance Loss:</strong> Focal Loss focuses training on hard minority pixels, while Dice Loss optimizes structural overlap.</li>
+                                <li><strong>Mixed Precision (AMP):</strong> Using `torch.cuda.amp` reduces memory utilization, accelerating GPU training times.</li>
+                            </ul>
+                        </div>
+                        <div class="card glass-card critique-con">
+                            <h3><i class="fa-solid fa-triangle-exclamation"></i> Shortcomings & Challenges</h3>
+                            <ul>
+                                <li><strong>High Compute Footprint:</strong> Custom U-Net with ~7.85M parameters is the heaviest model in the project.</li>
+                                <li><strong>Drastic Dataset Shift:</strong> Required custom mask preprocessing scripts to convert Roboflow polygonal coordinates to pixel masks.</li>
+                                <li><strong>Decoding Activation Latency:</strong> Bilinear upsampling and dense concatenations create high memory-bandwidth bottlenecks on edge CPUs.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SLIDE: COMPARATIVE DASHBOARD -->
+                <section class="slide-section" id="slide-comparison">
+                    <div class="comparison-grid">
+                        <div class="card glass-card table-card">
+                            <h3>Model Specifications & Results Matrix</h3>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Iter</th>
+                                            <th>Task</th>
+                                            <th>Architecture</th>
+                                            <th>Parameters</th>
+                                            <th>Model Size</th>
+                                            <th>Key Metric</th>
+                                            <th>Edge Fit</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="highlight-row-hover" onclick="showSlide('iteration1')">
+                                            <td>1</td>
+                                            <td>Binary Classification</td>
+                                            <td>FireCNN (Scratch)</td>
+                                            <td>389,153</td>
+                                            <td>~1.5 MiB</td>
+                                            <td>93.80% Acc</td>
+                                            <td><span class="badge badge-easy">Pi CPU Friendly</span></td>
+                                        </tr>
+                                        <tr class="highlight-row-hover" onclick="showSlide('iteration2')">
+                                            <td>2</td>
+                                            <td>4-Class Classification</td>
+                                            <td>MobileNetV3-Small</td>
+                                            <td>1,075,748</td>
+                                            <td>~4.1 MiB</td>
+                                            <td>89.16% Acc</td>
+                                            <td><span class="badge badge-easy">Edge CPU Friendly</span></td>
+                                        </tr>
+                                        <tr class="highlight-row-hover" onclick="showSlide('iteration3')">
+                                            <td>3</td>
+                                            <td>Robust 4-Class Classification</td>
+                                            <td>MobileNetV3 (INT8)</td>
+                                            <td>1,075,748</td>
+                                            <td>~1.1 MiB</td>
+                                            <td>90.25% Acc</td>
+                                            <td><span class="badge badge-ideal">Excellent Edge CPU</span></td>
+                                        </tr>
+                                        <tr class="highlight-row-hover" onclick="showSlide('iteration4')">
+                                            <td>4</td>
+                                            <td>Object Detection</td>
+                                            <td>YOLO26n (Ultralytics)</td>
+                                            <td>2,572,280</td>
+                                            <td>~9.8 MiB</td>
+                                            <td>75.24% mAP50</td>
+                                            <td><span class="badge badge-mod">Needs GPU/NPU</span></td>
+                                        </tr>
+                                        <tr class="highlight-row-hover" onclick="showSlide('iteration5')">
+                                            <td>5</td>
+                                            <td>Semantic Segmentation</td>
+                                            <td>Lightweight U-Net</td>
+                                            <td>7,849,667</td>
+                                            <td>~30.0 MiB</td>
+                                            <td>85.22% mIoU</td>
+                                            <td><span class="badge badge-hard">Jetson / CUDA GPU</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Chart Containers -->
+                        <div class="card glass-card chart-card">
+                            <h3>Computational Complexity Comparison</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="paramsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card glass-card chart-card">
+                            <h3>Model Footprint vs. Edge Suitability</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="latencyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SLIDE: HARDWARE SIMULATOR -->
+                <section class="slide-section" id="slide-simulator">
+                    <div class="simulator-layout">
+                        <!-- Controls -->
+                        <div class="card glass-card sim-controls">
+                            <h3>Target Hardware Configurator</h3>
+                            <p class="desc">Select an edge deployment target to calculate suitability, frame rate estimates, and quantization gains.</p>
+                            
+                            <div class="form-group">
+                                <label for="hw-select">Select Edge Hardware:</label>
+                                <select id="hw-select" class="custom-select">
+                                    <option value="pi-zero">Raspberry Pi Zero 2W (Ultra-constrained ARM CPU)</option>
+                                    <option value="pi-4" selected>Raspberry Pi 4 / 5 (Standard SBC ARM CPU)</option>
+                                    <option value="jetson-nano">NVIDIA Jetson Nano / Coral Edge TPU (Legacy Accelerator)</option>
+                                    <option value="jetson-orin">NVIDIA Jetson Orin Nano / Xavier NX (Modern Edge NPU/GPU)</option>
+                                    <option value="desktop-gpu">Desktop NVIDIA GPU (RTX 3060 / 4090)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Optimization Target:</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="opt-target" value="fp32" checked> FP32 (No optimization)
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="opt-target" value="quant"> Quantized (INT8 / TensorRT)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="sim-hardware-specs">
+                                <h4>Device Specs:</h4>
+                                <div id="spec-cpu" class="spec-row"><span class="lbl">CPU:</span> <span class="val">--</span></div>
+                                <div id="spec-gpu" class="spec-row"><span class="lbl">GPU/NPU:</span> <span class="val">--</span></div>
+                                <div id="spec-power" class="spec-row"><span class="lbl">Power Envelope:</span> <span class="val">--</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Results -->
+                        <div class="sim-results-container">
+                            <!-- Model row 1 -->
+                            <div class="card glass-card sim-result-card" id="sim-card-iter1">
+                                <div class="sim-result-header">
+                                    <h4>Iteration 1: FireCNN</h4>
+                                    <span class="compatibility-badge" id="compat-iter1">Recommended</span>
+                                </div>
+                                <div class="sim-result-body">
+                                    <div class="sim-stat"><span class="lbl">FPS:</span> <span class="val" id="fps-iter1">45.0</span></div>
+                                    <div class="sim-stat"><span class="lbl">Latency:</span> <span class="val" id="lat-iter1">22 ms</span></div>
+                                    <div class="sim-progress-bar"><div class="fill" id="bar-iter1" style="width: 80%;"></div></div>
+                                </div>
+                            </div>
+                            <!-- Model row 2 -->
+                            <div class="card glass-card sim-result-card" id="sim-card-iter3">
+                                <div class="sim-result-header">
+                                    <h4>Iteration 3: MobileNetV3 Robust</h4>
+                                    <span class="compatibility-badge" id="compat-iter3">Recommended</span>
+                                </div>
+                                <div class="sim-result-body">
+                                    <div class="sim-stat"><span class="lbl">FPS:</span> <span class="val" id="fps-iter3">30.0</span></div>
+                                    <div class="sim-stat"><span class="lbl">Latency:</span> <span class="val" id="lat-iter3">33 ms</span></div>
+                                    <div class="sim-progress-bar"><div class="fill" id="bar-iter3" style="width: 65%;"></div></div>
+                                </div>
+                            </div>
+                            <!-- Model row 3 -->
+                            <div class="card glass-card sim-result-card" id="sim-card-iter4">
+                                <div class="sim-result-header">
+                                    <h4>Iteration 4: YOLO26n Detector</h4>
+                                    <span class="compatibility-badge" id="compat-iter4">Warning</span>
+                                </div>
+                                <div class="sim-result-body">
+                                    <div class="sim-stat"><span class="lbl">FPS:</span> <span class="val" id="fps-iter4">3.5</span></div>
+                                    <div class="sim-stat"><span class="lbl">Latency:</span> <span class="val" id="lat-iter4">285 ms</span></div>
+                                    <div class="sim-progress-bar"><div class="fill" id="bar-iter4" style="width: 15%;"></div></div>
+                                </div>
+                            </div>
+                            <!-- Model row 4 -->
+                            <div class="card glass-card sim-result-card" id="sim-card-iter5">
+                                <div class="sim-result-header">
+                                    <h4>Iteration 5: Lightweight U-Net</h4>
+                                    <span class="compatibility-badge" id="compat-iter5">Not Recommended</span>
+                                </div>
+                                <div class="sim-result-body">
+                                    <div class="sim-stat"><span class="lbl">FPS:</span> <span class="val" id="fps-iter5">1.1</span></div>
+                                    <div class="sim-stat"><span class="lbl">Latency:</span> <span class="val" id="lat-iter5">910 ms</span></div>
+                                    <div class="sim-progress-bar"><div class="fill" id="bar-iter5" style="width: 5%;"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card glass-card deployment-analysis-card">
+                        <h3><i class="fa-solid fa-circle-nodes text-green"></i> Deployment Recommendation</h3>
+                        <p id="deployment-summary-text">For the selected hardware, Iteration 3 with MobileNetV3-Small quantized to INT8 provides the best balance of multi-class granularity, high frame rate, and minimal memory foot print.</p>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Interactive Layer Info Tooltip (Floating) -->
+    <div id="layer-tooltip" class="custom-tooltip" style="display: none;"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
