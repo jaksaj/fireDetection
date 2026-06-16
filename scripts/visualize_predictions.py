@@ -1,6 +1,6 @@
 """Visualisation script to run inference on multiple models and save results.
 
-This script loads the best checkpoints from Iteration 1, 2, 3, and 5,
+This script loads the best checkpoints from Iteration 1, 2, 3, 4, and 5,
 runs inference on sample images, and saves visual results.
 It can automatically find representative test images (Neither, Only_Fire,
 Only_Smoke, Both, and Segmentation) from the dataset splits, or process
@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run predictions across iteration models and save visualized results."
+        description="Run predictions across all iteration models and save visualized results."
     )
     parser.add_argument(
         "--input-dir",
@@ -109,7 +109,7 @@ def load_config(config_path: Path) -> dict:
 
 
 def load_model_weights(checkpoint_path: Path, model: nn.Module, device: torch.device) -> bool:
-    """Load model weights from checkpoint, returning True if successful."""
+    """Load classification/segmentation model weights from checkpoint, returning True if successful."""
     if not checkpoint_path.exists():
         logger.warning("Checkpoint not found at %s. Skipping this model.", checkpoint_path)
         return False
@@ -129,6 +129,25 @@ def load_model_weights(checkpoint_path: Path, model: nn.Module, device: torch.de
     except Exception as e:
         logger.error("Error loading checkpoint %s: %s", checkpoint_path, e)
         return False
+
+
+def load_iteration4_model(checkpoint_path: Path) -> Any:
+    """Load YOLO26 model from checkpoint, returning YOLO model if successful."""
+    if not checkpoint_path.exists():
+        logger.warning("YOLO checkpoint not found at %s. Skipping Iteration 4.", checkpoint_path)
+        return None
+    try:
+        from ultralytics import YOLO
+        model = YOLO(str(checkpoint_path))
+        logger.info("Loaded YOLO checkpoint from %s", checkpoint_path)
+        return model
+    except ImportError:
+        logger.error("Failed to import 'ultralytics' library. YOLO26 model cannot be evaluated.")
+        logger.error("Please install it on your workstation: pip install ultralytics")
+        return None
+    except Exception as e:
+        logger.error("Error loading YOLO model from %s: %s", checkpoint_path, e)
+        return None
 
 
 def get_representative_images(data_dir: Path, num_samples: int) -> list[dict[str, Any]]:
@@ -241,7 +260,7 @@ def apply_overlay(image_np: np.ndarray, mask_np: np.ndarray, alpha: float = 0.45
 
 def run_inference_on_image(
     img_path: Path,
-    models: dict[str, nn.Module],
+    models: dict[str, Any],
     device: torch.device
 ) -> dict[str, Any]:
     """Preprocess image and run inference through all loaded models."""
@@ -314,6 +333,21 @@ def run_inference_on_image(
         pred_class = MULTICLASS_CLASS_NAMES[pred_idx]
         results["iteration3"] = {"class": pred_class, "confidence": conf}
         
+    # Run Iteration 4 (YOLO26 Object Detection)
+    if "iteration4" in models:
+        model = models["iteration4"]
+        try:
+            # Run inference (disable verbose logging output)
+            yolo_results = model(orig_img, verbose=False)[0]
+            results["iteration4"] = {
+                "boxes": yolo_results.boxes.xyxy.cpu().numpy(),
+                "confs": yolo_results.boxes.conf.cpu().numpy(),
+                "clss": yolo_results.boxes.cls.cpu().numpy(),
+                "names": yolo_results.names
+            }
+        except Exception as e:
+            logger.error("Error running YOLO inference: %s", e)
+
     # Run Iteration 5 (U-Net Semantic Segmentation)
     if "iteration5" in models:
         model = models["iteration5"]
@@ -345,7 +379,6 @@ def save_visualizations(
     """Generate and save comparison grid and individual model outputs using Matplotlib."""
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
-    import matplotlib.colors as mcolors
     
     orig_img = results["orig_img"]
     img_width, img_height = orig_img.size
@@ -437,8 +470,46 @@ def save_visualizations(
     else:
         ax.text(img_width // 2, img_height // 2, "Model N/A", ha="center", va="center", color="gray", fontsize=14)
 
-    # Plot 5: Iteration 5 (U-Net Segmentation Overlay)
+    # Plot 5: Iteration 4 (YOLO26 Object Detection)
     ax = axes[1, 1]
+    ax.imshow(orig_img)
+    ax.set_title("Iteration 4: YOLO26 Object Detection", fontdict=title_font, pad=10)
+    ax.axis("off")
+    if "iteration4" in results:
+        res = results["iteration4"]
+        boxes = res["boxes"]
+        confs = res["confs"]
+        clss = res["clss"]
+        names = res["names"]
+        
+        for box, conf, cls in zip(boxes, confs, clss):
+            x1, y1, x2, y2 = box
+            width = x2 - x1
+            height = y2 - y1
+            class_name = names.get(int(cls), f"class_{int(cls)}")
+            
+            # Select color based on class (fire = red, smoke = orange)
+            color = "#DC143C" if "fire" in class_name.lower() else "#FF8C00"
+            
+            # Add bounding box
+            rect = mpatches.Rectangle(
+                (x1, y1), width, height,
+                linewidth=2.5, edgecolor=color, facecolor='none'
+            )
+            ax.add_patch(rect)
+            
+            # Add label text
+            label_text = f"{class_name} {conf:.1%}"
+            ax.text(
+                x1, max(0, y1 - 6), label_text,
+                color="white", weight="bold", fontsize=9,
+                bbox=dict(facecolor=color, alpha=0.85, edgecolor='none', pad=2)
+            )
+    else:
+        ax.text(img_width // 2, img_height // 2, "Model N/A", ha="center", va="center", color="gray", fontsize=14)
+
+    # Plot 6: Iteration 5 (U-Net Segmentation Overlay)
+    ax = axes[1, 2]
     if "iteration5" in results:
         res = results["iteration5"]
         # Resize original image to 256x256 to align with mask resolution
@@ -455,27 +526,6 @@ def save_visualizations(
         ax.imshow(orig_img)
         ax.text(img_width // 2, img_height // 2, "Model N/A", ha="center", va="center", color="gray", fontsize=14)
         ax.set_title("Iteration 5: U-Net Segmentation", fontdict=title_font, pad=10)
-    ax.axis("off")
-
-    # Plot 6: Iteration 5 (Raw predicted mask)
-    ax = axes[1, 2]
-    if "iteration5" in results:
-        res = results["iteration5"]
-        # Custom Listed Colormap: 0=Black (BG), 1=Orange (Smoke), 2=Red (Fire)
-        cmap = mcolors.ListedColormap(['#1E1E1E', '#FF8C00', '#DC143C'])
-        ax.imshow(res["mask"], cmap=cmap, vmin=0, vmax=2)
-        ax.set_title("Iteration 5: Predicted Mask", fontdict=title_font, pad=10)
-        
-        # Add discrete ticks to legend
-        bg_patch = mpatches.Patch(color='#1E1E1E', label='Background')
-        smoke_patch = mpatches.Patch(color='#FF8C00', label='Smoke')
-        fire_patch = mpatches.Patch(color='#DC143C', label='Fire')
-        ax.legend(handles=[bg_patch, smoke_patch, fire_patch], loc="upper right", fontsize=9, framealpha=0.9)
-    else:
-        # Create empty dark background
-        ax.imshow(np.zeros((256, 256, 3), dtype=np.uint8))
-        ax.text(128, 128, "Model N/A", ha="center", va="center", color="gray", fontsize=14)
-        ax.set_title("Iteration 5: Predicted Mask", fontdict=title_font, pad=10)
     ax.axis("off")
     
     # Save Grid Fig
@@ -531,6 +581,42 @@ def save_visualizations(
         plt.savefig(fn, bbox_inches="tight")
         plt.close()
 
+    # Iteration 4
+    if "iteration4" in results:
+        res = results["iteration4"]
+        fig, ax = plt.subplots(figsize=(8, 6), dpi=120)
+        ax.imshow(orig_img)
+        
+        boxes = res["boxes"]
+        confs = res["confs"]
+        clss = res["clss"]
+        names = res["names"]
+        
+        for box, conf, cls in zip(boxes, confs, clss):
+            x1, y1, x2, y2 = box
+            width = x2 - x1
+            height = y2 - y1
+            class_name = names.get(int(cls), f"class_{int(cls)}")
+            color = "#DC143C" if "fire" in class_name.lower() else "#FF8C00"
+            
+            rect = mpatches.Rectangle(
+                (x1, y1), width, height,
+                linewidth=2.5, edgecolor=color, facecolor='none'
+            )
+            ax.add_patch(rect)
+            
+            label_text = f"{class_name} {conf:.1%}"
+            ax.text(
+                x1, max(0, y1 - 6), label_text,
+                color="white", weight="bold", fontsize=9,
+                bbox=dict(facecolor=color, alpha=0.85, edgecolor='none', pad=2)
+            )
+            
+        ax.axis("off")
+        fn = output_dir / f"iter4_{img_name}.png"
+        plt.savefig(fn, bbox_inches="tight")
+        plt.close()
+
     # Iteration 5
     if "iteration5" in results:
         res = results["iteration5"]
@@ -560,7 +646,7 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     
     # 1. LOAD ALL CONFIGS AND INSTANTIATE MODELS
-    models: dict[str, nn.Module] = {}
+    models: dict[str, Any] = {}
     
     # Iteration 1 setup
     cfg1 = load_config(PROJECT_ROOT / "configs" / "iteration1.yaml")
@@ -597,6 +683,12 @@ def main() -> None:
     chkpt3 = args.checkpoint_dir / "iteration3" / "best_model.pt"
     if load_model_weights(chkpt3, model3, device):
         models["iteration3"] = model3
+
+    # Iteration 4 setup
+    chkpt4 = args.checkpoint_dir / "iteration4" / "yolo26-fire" / "best.pt"
+    model4 = load_iteration4_model(chkpt4)
+    if model4 is not None:
+        models["iteration4"] = model4
 
     # Iteration 5 setup
     cfg5 = load_config(PROJECT_ROOT / "configs" / "iteration5.yaml")
