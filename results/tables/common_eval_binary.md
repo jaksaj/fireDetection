@@ -1,0 +1,9 @@
+# Common-task comparison (binary axis), best operating point per method
+
+| method     | model_name               | paradigm                  |   threshold |   n_images |   accuracy |   f1_macro |   f1_fire |   precision_fire |   recall_fire |   f1_Neither |   f1_Only_Fire |   f1_Only_Smoke |   f1_Both |   domain_shift |
+|:-----------|:-------------------------|:--------------------------|------------:|-----------:|-----------:|-----------:|----------:|-----------------:|--------------:|-------------:|---------------:|----------------:|----------:|---------------:|
+| iteration4 | YOLO26n                  | object detection          |      0.1000 |       4306 |     0.9758 |     0.9689 |    0.9542 |           0.9369 |        0.9722 |          nan |            nan |             nan |       nan |              0 |
+| iteration3 | MobileNetV3-Small robust | multiclass classification |    nan      |       4306 |     0.9624 |     0.9510 |    0.9274 |           0.9266 |        0.9283 |          nan |            nan |             nan |       nan |              0 |
+| iteration2 | MobileNetV3-Small        | multiclass classification |    nan      |       4306 |     0.9538 |     0.9411 |    0.9137 |           0.8842 |        0.9453 |          nan |            nan |             nan |       nan |              0 |
+| iteration1 | FireCNN                  | binary classification     |    nan      |       4306 |     0.9380 |     0.9169 |    0.8749 |           0.9157 |        0.8377 |          nan |            nan |             nan |       nan |              0 |
+| iteration5 | LightweightUNet          | semantic segmentation     |      0.0200 |       4306 |     0.7559 |     0.6999 |    0.5701 |           0.5241 |        0.6251 |          nan |            nan |             nan |       nan |              1 |

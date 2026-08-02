@@ -123,6 +123,7 @@ class DFireDataModule:
         train_split: str = "train",
         val_split: str = "val",
         test_split: str = "test",
+        seed: int | None = None,
     ) -> None:
         self.root_dir = Path(root_dir)
         self.image_size = image_size
@@ -132,6 +133,10 @@ class DFireDataModule:
         self.train_split = train_split
         self.val_split = val_split
         self.test_split = test_split
+        # Shuffling order and per-worker augmentation randomness are only
+        # reproducible if the loader is given an explicit generator and worker
+        # seeding function; seeding torch alone is not enough.
+        self.seed = seed
 
         self.train_transform = transforms.Compose(
             [
@@ -171,13 +176,29 @@ class DFireDataModule:
             transform=transform,
             fire_class_id=self.fire_class_id,
         )
-        return DataLoader(
-            dataset,
-            batch_size=self.batch_size,
-            shuffle=shuffle,
-            num_workers=self.num_workers,
-            pin_memory=True,
-        )
+        loader_kwargs: dict = {
+            "batch_size": self.batch_size,
+            "shuffle": shuffle,
+            "num_workers": self.num_workers,
+            "pin_memory": True,
+        }
+        if self.seed is not None:
+            from src.utils import make_generator, seed_worker
+
+            loader_kwargs["worker_init_fn"] = seed_worker
+            loader_kwargs["generator"] = make_generator(self.seed)
+
+        # See DFireMulticlassDataModule.setup: this pipeline is I/O-latency
+        # bound on many small JPEG reads, so keep workers alive between epochs
+        # and prefetch deeper. Throughput-only change; sample order is unaffected.
+        # Training loader only (`shuffle` identifies it) -- holding persistent
+        # workers on val and test as well tripled the resident process count and
+        # contributed to a host-RAM OOM on this 16 GB machine.
+        if self.num_workers > 0 and shuffle:
+            loader_kwargs["persistent_workers"] = True
+            loader_kwargs["prefetch_factor"] = 4
+
+        return DataLoader(dataset, **loader_kwargs)
 
     def setup(self) -> None:
         """Build train, validation, and test DataLoaders."""

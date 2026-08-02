@@ -1,4 +1,6 @@
 # Iteration 4: YOLO26 Object Detection (Fire & Smoke Localization)
+# Random seed for reproducibility. Override per-run with --seed.
+seed: 42
 data:
   root_dir: data
   train_split: train
@@ -17,7 +19,7 @@ training:
   imgsz: 640
   batch: 16
   patience: 15
-  workers: 4
+  workers: 10
   learning_rate: 0.01
   weight_decay: 0.0005
   optimizer: auto           # auto selects MuSGD for long runs

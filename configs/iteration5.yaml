@@ -1,4 +1,6 @@
 # Iteration 5: Pixel-Level Semantic Segmentation (Lightweight Custom U-Net)
+# Random seed for reproducibility. Override per-run with --seed.
+seed: 42
 data:
   root_dir: data/coco
   train_split: train
@@ -6,7 +8,7 @@ data:
   test_split: test
   image_size: 256
   batch_size: 16
-  num_workers: 4
+  num_workers: 10
   coco_annotation_file: _annotations.coco.json
   classes:
     - background

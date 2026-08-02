@@ -1,0 +1,55 @@
+# Backbone comparison on the 4-class D-Fire task.
+#
+# This config is the *controlled* half of the thesis. Everything here is held
+# identical across every architecture -- resolution, batch size, augmentation,
+# class weighting, epoch budget, learning rates, optimizer, and seed. Only the
+# feature trunk changes. That is what makes an accuracy difference between rows
+# attributable to the architecture rather than to the training setup.
+#
+# It intentionally mirrors configs/iteration2.yaml (the transfer-learning
+# baseline) so the MobileNetV3-Small row here is directly comparable to
+# Iteration 2's published number.
+
+seed: 42
+
+data:
+  root_dir: data
+  train_split: train
+  val_split: val
+  test_split: test
+  fire_class_id: 1        # D-Fire YOLO: 0 = smoke, 1 = fire
+  smoke_class_id: 0
+  image_size: 224
+  batch_size: 32
+  num_workers: 10
+  use_class_weights: true
+  augmentation: torchvision   # standard pipeline; the robustness variant is Iteration 3
+
+model:
+  num_classes: 4
+  pretrained: true        # ignored by firecnn, which has no pretrained trunk
+  dropout: 0.2
+
+training:
+  # Two-phase budget, identical to Iteration 2. FireCNN has no trunk to freeze
+  # and is trained end-to-end for head_epochs + finetune_epochs = 15 epochs, so
+  # every architecture sees the same number of passes over the data.
+  head_epochs: 5
+  finetune_epochs: 10
+  head_learning_rate: 0.001
+  finetune_learning_rate: 0.0001
+  unfreeze_blocks: 3
+  weight_decay: 0.0001
+  checkpoint_dir: checkpoints/comparison
+  run_test_after_training: true
+  log_every_n_batches: 50
+
+wandb:
+  project: smoke-fire-detection
+  entity: jaksaj35-university-of-split
+  run_name: comparison
+  mode: disabled          # results are persisted to results/ via src.results
+  tags:
+    - comparison
+    - backbone-ablation
+    - d-fire

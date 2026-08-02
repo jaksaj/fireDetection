@@ -149,9 +149,20 @@ class SegmentationTrainer(BaseTrainer):
         mean_dice = dice_per_class.mean().item()
         pixel_accuracy = total_pixels_correct / max(total_pixels, 1)
 
+        # Hazard-only means exclude class 0 (background). The 3-class mIoU is
+        # inflated by background, which is both the easiest class and the
+        # overwhelming majority of pixels: 85.22% mIoU = mean(96.18, 83.23,
+        # 76.26), so ~11 points of the headline come from correctly labelling
+        # empty sky. Reporting both makes the segmentation result comparable to
+        # the detector, which is scored only on hazard classes.
+        hazard_iou = iou_per_class[1:] if len(iou_per_class) > 1 else iou_per_class
+        hazard_dice = dice_per_class[1:] if len(dice_per_class) > 1 else dice_per_class
+
         extras = {
             "mIoU": mean_iou,
             "mDice": mean_dice,
+            "mIoU_hazard_only": hazard_iou.mean().item(),
+            "mDice_hazard_only": hazard_dice.mean().item(),
             "pixel_accuracy": pixel_accuracy,
         }
         for c, name in enumerate(self.class_names):

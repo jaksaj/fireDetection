@@ -184,6 +184,7 @@ class SegmentationDataModule:
         train_split: str = "train",
         val_split: str = "valid",
         test_split: str = "test",
+        seed: int | None = None,
     ) -> None:
         self.root_dir = Path(root_dir)
         self.image_size = image_size
@@ -193,6 +194,8 @@ class SegmentationDataModule:
         self.train_split = train_split
         self.val_split = val_split
         self.test_split = test_split
+        # See DFireDataModule.seed.
+        self.seed = seed
 
         self.train_transform = build_robust_train_transforms(image_size)
         self.eval_transform = build_robust_eval_transforms(image_size)
@@ -212,13 +215,25 @@ class SegmentationDataModule:
             transform=transform,
             coco_annotation_file=self.coco_annotation_file,
         )
-        return DataLoader(
-            dataset,
-            batch_size=self.batch_size,
-            shuffle=shuffle,
-            num_workers=self.num_workers,
-            pin_memory=True,
-        )
+        loader_kwargs: dict = {
+            "batch_size": self.batch_size,
+            "shuffle": shuffle,
+            "num_workers": self.num_workers,
+            "pin_memory": True,
+        }
+        if self.seed is not None:
+            from src.utils import make_generator, seed_worker
+
+            loader_kwargs["worker_init_fn"] = seed_worker
+            loader_kwargs["generator"] = make_generator(self.seed)
+
+        # See DFireMulticlassDataModule.setup: I/O-latency bound loading.
+        # Training loader only, to bound resident worker processes.
+        if self.num_workers > 0 and shuffle:
+            loader_kwargs["persistent_workers"] = True
+            loader_kwargs["prefetch_factor"] = 4
+
+        return DataLoader(dataset, **loader_kwargs)
 
     def setup(self) -> None:
         """Build train, validation, and test DataLoaders."""

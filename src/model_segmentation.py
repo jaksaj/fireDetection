@@ -6,9 +6,12 @@ import logging
 import torch
 import torch.nn as nn
 
+from src.utils import resolve_device
+
 logger = logging.getLogger(__name__)
 
-DEVICE = torch.device("cuda")
+# Default only; pass `device=` to instantiate on CPU for edge benchmarking.
+DEVICE = resolve_device()
 
 
 class DoubleConv(nn.Module):
@@ -91,11 +94,14 @@ class LightweightUNet(nn.Module):
         in_channels: int = 3,
         num_classes: int = 3,
         base_channels: int = 32,
+        device: str | torch.device | None = None,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.base_channels = base_channels
+
+        target_device = resolve_device(device)
 
         # Encoder path
         self.inc = DoubleConv(in_channels, base_channels)  # 32
@@ -122,7 +128,7 @@ class LightweightUNet(nn.Module):
         self.outc = nn.Conv2d(base_channels, num_classes, kernel_size=1)
 
         self._initialize_weights()
-        self.to(DEVICE)
+        self.to(target_device)
 
         param_count = sum(p.numel() for p in self.parameters())
         logger.info(
@@ -130,7 +136,7 @@ class LightweightUNet(nn.Module):
             base_channels,
             num_classes,
             param_count,
-            DEVICE,
+            target_device,
         )
 
     def _initialize_weights(self) -> None:

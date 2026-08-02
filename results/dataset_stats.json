@@ -1,0 +1,176 @@
+{
+  "dataset": "D-Fire (YOLO format)",
+  "class_mapping": {
+    "0": "smoke",
+    "1": "fire"
+  },
+  "image_level_classes": [
+    "Neither",
+    "Only_Fire",
+    "Only_Smoke",
+    "Both"
+  ],
+  "environment": {
+    "python": "3.11.4",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD",
+    "machine": "AMD64",
+    "hostname": "DESKTOP-7FJTRSO",
+    "torch": "2.5.1+cu121",
+    "cuda_version": "12.1",
+    "cuda_available": true,
+    "gpu_name": "NVIDIA GeForce RTX 3060",
+    "gpu_memory_gb": 12.88,
+    "gpu_capability": "8.6"
+  },
+  "splits": {
+    "train": {
+      "split": "train",
+      "n_images": 14122,
+      "missing_label_files": 0,
+      "label_counts": {
+        "Neither": 6458,
+        "Only_Fire": 770,
+        "Only_Smoke": 3836,
+        "Both": 3058
+      },
+      "label_percentages": {
+        "Neither": 45.7300665628098,
+        "Only_Fire": 5.452485483642543,
+        "Only_Smoke": 27.163291318510126,
+        "Both": 21.65415663503753
+      },
+      "binary_fire": 3828,
+      "binary_normal": 10294,
+      "box_counts": {
+        "smoke": 7794,
+        "fire": 9638
+      },
+      "prefix_ranges": {
+        "AoF": {
+          "count": 5536,
+          "min_id": 0,
+          "max_id": 6722
+        },
+        "PublicDataset": {
+          "count": 847,
+          "min_id": 0,
+          "max_id": 1054
+        },
+        "WEB": {
+          "count": 7739,
+          "min_id": 0,
+          "max_id": 9441
+        }
+      }
+    },
+    "val": {
+      "split": "val",
+      "n_images": 3099,
+      "missing_label_files": 0,
+      "label_counts": {
+        "Neither": 1375,
+        "Only_Fire": 174,
+        "Only_Smoke": 845,
+        "Both": 705
+      },
+      "label_percentages": {
+        "Neither": 44.36915133914166,
+        "Only_Fire": 5.614714424007745,
+        "Only_Smoke": 27.266860277508872,
+        "Both": 22.749273959341725
+      },
+      "binary_fire": 879,
+      "binary_normal": 2220,
+      "box_counts": {
+        "smoke": 1756,
+        "fire": 2176
+      },
+      "prefix_ranges": {
+        "AoF": {
+          "count": 1187,
+          "min_id": 8,
+          "max_id": 6702
+        },
+        "PublicDataset": {
+          "count": 208,
+          "min_id": 4,
+          "max_id": 1052
+        },
+        "WEB": {
+          "count": 1704,
+          "min_id": 3,
+          "max_id": 9442
+        }
+      }
+    },
+    "test": {
+      "split": "test",
+      "n_images": 4306,
+      "missing_label_files": 0,
+      "label_counts": {
+        "Neither": 2005,
+        "Only_Fire": 220,
+        "Only_Smoke": 1186,
+        "Both": 895
+      },
+      "label_percentages": {
+        "Neither": 46.56293543892243,
+        "Only_Fire": 5.1091500232234095,
+        "Only_Smoke": 27.54296330701347,
+        "Both": 20.784951230840687
+      },
+      "binary_fire": 1115,
+      "binary_normal": 3191,
+      "box_counts": {
+        "smoke": 2315,
+        "fire": 2878
+      },
+      "prefix_ranges": {
+        "AoF": {
+          "count": 1661,
+          "min_id": 6723,
+          "max_id": 8383
+        },
+        "PublicDataset": {
+          "count": 281,
+          "min_id": 1055,
+          "max_id": 1335
+        },
+        "WEB": {
+          "count": 2364,
+          "min_id": 9443,
+          "max_id": 11806
+        }
+      }
+    }
+  },
+  "totals": {
+    "n_images": 21527,
+    "label_counts": {
+      "Neither": 9838,
+      "Only_Fire": 1164,
+      "Only_Smoke": 5867,
+      "Both": 4658
+    },
+    "label_percentages": {
+      "Neither": 45.70074789798857,
+      "Only_Fire": 5.4071630975054585,
+      "Only_Smoke": 27.254145956241,
+      "Both": 21.63794304826497
+    }
+  },
+  "integrity": {
+    "filename_overlaps": {
+      "train&val": 0,
+      "train&test": 0,
+      "val&test": 0
+    },
+    "content_duplicates": {
+      "status": "checked",
+      "n_cross_split_duplicate_groups": 0,
+      "n_within_split_duplicate_groups": 0,
+      "cross_split_examples": []
+    }
+  }
+}

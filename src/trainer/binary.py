@@ -50,6 +50,33 @@ class BinaryTrainer(BaseTrainer):
     ) -> float:
         return calculate_accuracy(logits, labels)
 
+    def extract_predictions(
+        self, logits: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Threshold the single sigmoid output at 0.5; score is P(fire)."""
+        scores = torch.sigmoid(logits.squeeze(-1))
+        return (scores > 0.5).long(), scores
+
+    def build_epoch_extras(
+        self,
+        y_true: list[int],
+        y_pred: list[int],
+        y_score: list[float] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Full binary metric set for a fire detector.
+
+        Accuracy alone was the only metric this iteration reported. For a
+        safety-critical detector that is the wrong headline: on this split 74%
+        of images contain no fire, so a model that never predicts fire scores
+        74% accuracy while missing every fire. Recall and false-alarm rate are
+        the operationally meaningful quantities, and PR-AUC/ROC-AUC summarise
+        performance across all thresholds rather than the arbitrary 0.5.
+        """
+        from src.metrics import compute_binary_metrics
+
+        return compute_binary_metrics(y_true, y_pred, y_score)
+
     def fit(
         self,
         epochs: int,

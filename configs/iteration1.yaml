@@ -1,4 +1,6 @@
 # Iteration 1: Binary Classification (Fire vs. Normal)
+# Random seed for reproducibility. Override per-run with --seed.
+seed: 42
 data:
   root_dir: data
   train_split: train
@@ -7,7 +9,7 @@ data:
   fire_class_id: 1        # D-Fire YOLO: 0 = smoke, 1 = fire
   image_size: 224
   batch_size: 32
-  num_workers: 4
+  num_workers: 10
 
 model:
   in_channels: 3

@@ -33,3 +33,21 @@ Thumbs.db
 
 # WandB
 .wandb/
+
+# Sweep logs (regenerable, noisy)
+results/*.log
+
+# Jetson bundle: the .onnx/.pt payloads are already excluded by the patterns
+# above, and the tarball is rebuilt by scripts/export_for_jetson.py. The
+# device-side scripts and README ARE tracked.
+jetson_bundle.tar.gz
+jetson/results/
+jetson/models/MANIFEST.txt
+
+# Failure-case montages: ~16 MB of PNGs regenerated in ~2 min by
+# scripts/analyze_failures.py. The ranked CSV it also produces IS tracked,
+# since that is what the Discussion chapter cites.
+results/failures/
+
+# Results backups written by scripts/merge_jetson_results.py
+results/*.csv.bak

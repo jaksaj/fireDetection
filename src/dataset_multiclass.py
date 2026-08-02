@@ -134,6 +134,7 @@ class DFireMulticlassDataModule:
         val_split: str = "val",
         test_split: str = "test",
         augmentation: str = "torchvision",
+        seed: int | None = None,
     ) -> None:
         self.root_dir = Path(root_dir)
         self.image_size = image_size
@@ -146,6 +147,9 @@ class DFireMulticlassDataModule:
         self.test_split = test_split
         self.augmentation = augmentation
         self.use_albumentations = augmentation == "albumentations"
+        # See DFireDataModule.seed: required for reproducible shuffling and
+        # per-worker augmentation randomness.
+        self.seed = seed
 
         if self.use_albumentations:
             from src.augmentations import (
@@ -188,26 +192,10 @@ class DFireMulticlassDataModule:
             ]
         )
 
-    def _build_loader(
-        self,
-        split_name: str,
-        transform: Callable,
-        shuffle: bool,
-    ) -> DataLoader:
-        dataset = DFireMulticlassDataset(
-            split_dir=self.root_dir / split_name,
-            transform=transform,
-            fire_class_id=self.fire_class_id,
-            smoke_class_id=self.smoke_class_id,
-            use_albumentations=self.use_albumentations,
-        )
-        return DataLoader(
-            dataset,
-            batch_size=self.batch_size,
-            shuffle=shuffle,
-            num_workers=self.num_workers,
-            pin_memory=True,
-        )
+    # Note: this class builds its loaders inline in `setup()` rather than via a
+    # `_build_loader` helper (as DFireDataModule and SegmentationDataModule do),
+    # because the training loader needs different kwargs from val/test —
+    # persistent workers are applied to training only.
 
     def setup(self) -> None:
         """Build train, validation, and test DataLoaders."""
@@ -232,12 +220,41 @@ class DFireMulticlassDataModule:
             **dataset_kwargs,
         )
 
+        seed_kwargs: dict = {}
+        if self.seed is not None:
+            from src.utils import make_generator, seed_worker
+
+            seed_kwargs = {
+                "worker_init_fn": seed_worker,
+                "generator": make_generator(self.seed),
+            }
+
+        # Training here is I/O-latency bound, not compute bound: an epoch reads
+        # 14,122 small JPEGs individually, and with few workers the GPU sits idle
+        # waiting on file opens (measured: ~7% GPU, ~6% CPU, 97% of epoch time in
+        # data loading). Keeping workers alive across epochs avoids re-spawning
+        # them 15 times per run, and a deeper prefetch queue hides per-file
+        # latency. Both are loader-side only -- they change throughput, not the
+        # sequence of samples, so seeded runs stay reproducible for a fixed
+        # worker count.
+        # Persistent workers are applied to the *training* loader only. Keeping
+        # them alive on all three loaders holds 3 x num_workers processes
+        # resident for the whole run; on this 16 GB machine that contributed to
+        # an out-of-memory kill in a concurrent YOLO run. Validation and test
+        # loaders are each traversed once per epoch, so re-spawning them is
+        # cheap relative to the memory they would otherwise hold.
+        train_kwargs = dict(seed_kwargs)
+        if self.num_workers > 0:
+            train_kwargs["persistent_workers"] = True
+            train_kwargs["prefetch_factor"] = 4
+
         self._train_loader = DataLoader(
             self._train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
             pin_memory=True,
+            **train_kwargs,
         )
         self._val_loader = DataLoader(
             val_dataset,
@@ -245,6 +262,7 @@ class DFireMulticlassDataModule:
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=True,
+            **seed_kwargs,
         )
         self._test_loader = DataLoader(
             test_dataset,
@@ -252,6 +270,7 @@ class DFireMulticlassDataModule:
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=True,
+            **seed_kwargs,
         )
 
         logger.info(

@@ -1,0 +1,13 @@
+\begin{table}
+\caption{Common-task comparison (multiclass axis), best operating point per method}
+\begin{tabular}{lllrrrrrrrrrrrr}
+\toprule
+method & model\_name & paradigm & threshold & n\_images & accuracy & f1\_macro & f1\_fire & precision\_fire & recall\_fire & f1\_Neither & f1\_Only\_Fire & f1\_Only\_Smoke & f1\_Both & domain\_shift \\
+\midrule
+iteration4 & YOLO26n & object detection & 0.1000 & 4306 & 0.9366 & 0.8944 & NaN & NaN & NaN & 0.9719 & 0.7670 & 0.9235 & 0.9151 & 0 \\
+iteration3 & MobileNetV3-Small robust & multiclass classification & NaN & 4306 & 0.8955 & 0.8610 & NaN & NaN & NaN & 0.9408 & 0.7680 & 0.8620 & 0.8734 & 0 \\
+iteration2 & MobileNetV3-Small & multiclass classification & NaN & 4306 & 0.8946 & 0.8438 & NaN & NaN & NaN & 0.9483 & 0.6878 & 0.8804 & 0.8586 & 0 \\
+iteration5 & LightweightUNet & semantic segmentation & 0.0200 & 4306 & 0.4445 & 0.3669 & NaN & NaN & NaN & 0.5263 & 0.0388 & 0.3264 & 0.5761 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}

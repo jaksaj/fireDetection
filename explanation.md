@@ -158,7 +158,9 @@ $$\mathcal{L}_{\text{total}} = \lambda_{\text{box}} \mathcal{L}_{\text{CIoU}} + 
 * **BCE Loss:** Used for classifying objects (fire vs. smoke) and determining objectness.
 
 ### 4. Transfer Learning Strategy
-* **Strategy:** COCO-pretrained weights (`yolo26n.pt`) are loaded. The backbone features are frozen during the initial epochs to retain general feature representations (since COCO contains 80 classes, including fire hydrants and general objects), and then the entire network (backbone, neck, and heads) is fine-tuned to adapt the feature filters to the visual characteristics of fire and smoke.
+* **Strategy:** COCO-pretrained weights (`yolo26n.pt`) are loaded and the **entire network (backbone, neck, and heads) is fine-tuned from the first epoch**. No layers are frozen: the run was configured with `freeze: null` (see `checkpoints/iteration4/yolo26-dfire/args.yaml`), which is the Ultralytics default, and `src/detection/trainer.py` passes no `freeze` argument.
+
+  > **Note.** An earlier version of this document claimed the backbone was frozen for the initial epochs. That was never true of the executed run. This differs deliberately from the two-phase protocol used in Iterations 2 and 3, where a frozen-backbone warmup protects a small randomly-initialised head from large early gradients. YOLO's detection head is comparatively well-conditioned under its warmup schedule (`warmup_epochs: 3.0`, `warmup_bias_lr: 0.1`), so a staged unfreeze is not the standard recipe for this architecture.
 
 ### 5. Output Layer Design
 * **Decoupled Head:** The output head is split into two separate paths:
@@ -167,8 +169,11 @@ $$\mathcal{L}_{\text{total}} = \lambda_{\text{box}} \mathcal{L}_{\text{CIoU}} + 
 * **Scale Outputs:** The model outputs feature maps at three different strides (usually 8, 16, and 32 times downsampled), matching the target supervision signal of bounding boxes at multiple spatial resolutions.
 
 ### 6. Key Training Decisions
-* **Optimizer:** **SGD with Momentum** (MuSGD) with a learning rate of $0.01$ and weight decay of $0.0005$. SGD is preferred for long detection training runs (50 epochs) because its uniform gradient steps act as a regularizer, often finding flatter, more generalizable minima than Adam.
-* **Real-Time Export (ONNX & TensorRT):** The model is exported to TensorRT. TensorRT optimizes execution on NVIDIA hardware (Jetson/GPUs) by fusing layers (combining convolution, bias, and activation into a single kernel) and using FP16 precision, meeting the real-time target of 30 FPS.
+* **Optimizer:** `optimizer: auto` (`configs/iteration4.yaml`), which delegates the choice to Ultralytics' heuristic rather than fixing it. The recorded run used `lr0: 0.01`, `momentum: 0.937`, `weight_decay: 0.0005`, and a 3-epoch warmup (`warmup_epochs: 3.0`, `warmup_momentum: 0.8`, `warmup_bias_lr: 0.1`), with a linear LR schedule (`cos_lr: false`) and mixed precision (`amp: true`).
+
+  > **Note.** An earlier version of this document named the optimizer "SGD with Momentum (MuSGD)". "MuSGD" is not an optimizer this project used, and the choice was never pinned in the config. To make this claim precise the thesis should either set `optimizer: SGD` explicitly and rerun, or report exactly what `auto` resolved to for this run. Everything else in this bullet is read directly from the saved `args.yaml`.
+
+* **Real-Time Export (ONNX & TensorRT):** ONNX export succeeded (`checkpoints/iteration4/yolo26-dfire/weights/best.onnx`). **TensorRT export has never completed** — no `.engine` artifact exists — and until the Jetson measurements are run, no exported-artifact latency has been measured on NVIDIA edge hardware. Measured ONNX Runtime CPU latency is recorded in `results/benchmarks.csv`; any claim about meeting a 30 FPS target must cite that file rather than this paragraph.
 
 ### 7. Why this Network could NOT have been used at a different stage
 * **Stage 1, 2 & 3 (Image Classification):** The classification dataset lacks bounding box annotations. YOLO cannot calculate its CIoU or DFL regression losses without bounding box targets, making it impossible to train.

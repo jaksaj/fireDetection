@@ -1,0 +1,19 @@
+\begin{table}
+\caption{Accuracy vs cost, per method and device}
+\begin{tabular}{lllrrrrr}
+\toprule
+method & label & device & latency\_ms & fps & f1\_macro & accuracy & threshold \\
+\midrule
+iteration1 & FireCNN (binary cls) & cpu & 6.2554 & 159.8619 & 0.9169 & 0.9380 & NaN \\
+iteration1 & FireCNN (binary cls) & cuda & 0.7171 & 1394.5057 & 0.9169 & 0.9380 & NaN \\
+iteration2 & MobileNetV3-S (4-cls) & cpu & 4.8977 & 204.1796 & 0.9411 & 0.9538 & NaN \\
+iteration2 & MobileNetV3-S (4-cls) & cuda & 5.6924 & 175.6728 & 0.9411 & 0.9538 & NaN \\
+iteration3 & MobileNetV3-S robust & cpu & 4.8521 & 206.0942 & 0.9510 & 0.9624 & NaN \\
+iteration3 & MobileNetV3-S robust & cuda & 5.8132 & 172.0238 & 0.9510 & 0.9624 & NaN \\
+iteration4 & YOLO26n (detection) & cpu & 45.1913 & 22.1282 & 0.9689 & 0.9758 & 0.1000 \\
+iteration4 & YOLO26n (detection) & cuda & 16.6199 & 60.1690 & 0.9689 & 0.9758 & 0.1000 \\
+iteration5 & U-Net (segmentation) & cpu & 107.7754 & 9.2786 & 0.6999 & 0.7559 & 0.0200 \\
+iteration5 & U-Net (segmentation) & cuda & 4.8795 & 204.9390 & 0.6999 & 0.7559 & 0.0200 \\
+\bottomrule
+\end{tabular}
+\end{table}

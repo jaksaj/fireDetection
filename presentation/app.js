@@ -12,65 +12,72 @@
         simulator: { title: 'Hardware Deployment Simulator', category: 'Deployment' }
     };
 
+    // ------------------------------------------------------------------
+    // MEASURED DATA ONLY.
+    //
+    // A previous version of this file hardcoded a full per-device FPS and
+    // latency matrix (Pi Zero / Pi 4 / Jetson Nano / Orin / desktop GPU) plus
+    // per-device quantization "boost" multipliers. Those numbers were never
+    // produced by any code in this repository -- they were invented for the
+    // slide deck. They have been removed.
+    //
+    // Latency now comes exclusively from results/benchmarks.csv, produced by
+    // scripts/run_benchmarks.py using the harness in src/benchmark.py. Any
+    // (model, device, precision) combination that has not actually been
+    // measured renders as "not measured" rather than as a plausible number.
+    //
+    // Params and on-disk sizes below are real: params are counted from the
+    // model definitions, sizeMb is the size of the saved checkpoint on disk.
+    // ------------------------------------------------------------------
+
     const modelStats = [
-        { id: 'iter1', name: 'Iteration 1: FireCNN', params: 389153, sizeMb: 1.5, edgeScore: 95, baselineFps: { 'pi-zero': 11, 'pi-4': 45, 'jetson-nano': 62, 'jetson-orin': 110, 'desktop-gpu': 180 }, baselineLatency: { 'pi-zero': 91, 'pi-4': 22, 'jetson-nano': 16, 'jetson-orin': 9, 'desktop-gpu': 5 }, recommended: ['pi-zero', 'pi-4', 'jetson-nano'] },
-        { id: 'iter3', name: 'Iteration 3: MobileNetV3 Robust', params: 1075748, sizeMb: 1.1, edgeScore: 88, baselineFps: { 'pi-zero': 4.2, 'pi-4': 30, 'jetson-nano': 51, 'jetson-orin': 95, 'desktop-gpu': 158 }, baselineLatency: { 'pi-zero': 238, 'pi-4': 33, 'jetson-nano': 20, 'jetson-orin': 11, 'desktop-gpu': 6 }, recommended: ['pi-4', 'jetson-nano', 'jetson-orin'] },
-        { id: 'iter4', name: 'Iteration 4: YOLO26n Detector', params: 2572280, sizeMb: 9.8, edgeScore: 42, baselineFps: { 'pi-zero': 0.4, 'pi-4': 3.5, 'jetson-nano': 10.5, 'jetson-orin': 34, 'desktop-gpu': 72 }, baselineLatency: { 'pi-zero': 2600, 'pi-4': 285, 'jetson-nano': 95, 'jetson-orin': 29, 'desktop-gpu': 14 }, recommended: ['jetson-orin', 'desktop-gpu'] },
-        { id: 'iter5', name: 'Iteration 5: Lightweight U-Net', params: 7849667, sizeMb: 30.0, edgeScore: 28, baselineFps: { 'pi-zero': 0.1, 'pi-4': 1.1, 'jetson-nano': 2.9, 'jetson-orin': 11, 'desktop-gpu': 29 }, baselineLatency: { 'pi-zero': 10000, 'pi-4': 910, 'jetson-nano': 345, 'jetson-orin': 91, 'desktop-gpu': 34 }, recommended: ['jetson-orin', 'desktop-gpu'] }
+        { id: 'iter1', key: 'iteration1', name: 'Iteration 1: FireCNN', params: 389153, sizeMb: 4.48 },
+        { id: 'iter3', key: 'iteration3', name: 'Iteration 3: MobileNetV3 Robust', params: 1075748, sizeMb: 10.33 },
+        { id: 'iter4', key: 'iteration4', name: 'Iteration 4: YOLO26n Detector', params: 2572280, sizeMb: 5.29 },
+        { id: 'iter5', key: 'iteration5', name: 'Iteration 5: Lightweight U-Net', params: 7849667, sizeMb: 29.95 }
     ];
 
+    // Hardware descriptions are specifications, not performance claims.
+    // `measured: false` means no benchmark has been run on this device; the
+    // simulator refuses to display numbers for it.
     const hardwareProfiles = {
-        'pi-zero': {
-            label: 'Raspberry Pi Zero 2W',
-            cpu: 'Quad-core Cortex-A53',
-            gpu: 'None',
-            power: 'Very low, USB-powered',
-            multiplier: 0.32,
-            quantBoost: 1.55,
-            quantLatencyBoost: 0.78,
-            compat: { iter1: 'good', iter3: 'warn', iter4: 'bad', iter5: 'bad' }
-        },
-        'pi-4': {
-            label: 'Raspberry Pi 4 / 5',
-            cpu: '4-8 core ARM64',
-            gpu: 'Integrated VideoCore',
-            power: 'Low, fan recommended',
-            multiplier: 1,
-            quantBoost: 1.35,
-            quantLatencyBoost: 0.72,
-            compat: { iter1: 'good', iter3: 'good', iter4: 'warn', iter5: 'bad' }
-        },
-        'jetson-nano': {
-            label: 'NVIDIA Jetson Nano',
-            cpu: 'Quad-core ARM A57',
-            gpu: '128-core Maxwell GPU',
-            power: '5W - 10W mode',
-            multiplier: 1.45,
-            quantBoost: 1.7,
-            quantLatencyBoost: 0.66,
-            compat: { iter1: 'good', iter3: 'good', iter4: 'warn', iter5: 'warn' }
-        },
-        'jetson-orin': {
-            label: 'NVIDIA Jetson Orin Nano',
-            cpu: '6-core ARM64',
-            gpu: 'Ada Lovelace GPU / NPU',
-            power: '10W - 25W',
-            multiplier: 3.9,
-            quantBoost: 1.28,
-            quantLatencyBoost: 0.72,
-            compat: { iter1: 'good', iter3: 'good', iter4: 'good', iter5: 'good' }
-        },
         'desktop-gpu': {
-            label: 'Desktop NVIDIA GPU',
-            cpu: 'Modern desktop x86_64',
-            gpu: 'RTX-class CUDA GPU',
+            label: 'Desktop GPU (RTX 3060)',
+            cpu: 'AMD Ryzen, 6 cores (Zen 3)',
+            gpu: 'NVIDIA RTX 3060, 12 GB, SM 8.6',
             power: 'High, mains powered',
-            multiplier: 8,
-            quantBoost: 1.12,
-            quantLatencyBoost: 0.82,
-            compat: { iter1: 'good', iter3: 'good', iter4: 'good', iter5: 'good' }
+            benchDevice: 'cuda',
+            measured: true
+        },
+        'desktop-cpu': {
+            label: 'Desktop CPU (x86-64)',
+            cpu: 'AMD Ryzen, 6 cores (Zen 3)',
+            gpu: 'None (CPU inference)',
+            power: 'High, mains powered',
+            benchDevice: 'cpu',
+            measured: true
+        },
+        'jetson-orin-gpu': {
+            label: 'Jetson Orin Nano (GPU)',
+            cpu: '6-core Arm Cortex-A78AE',
+            gpu: 'Ampere iGPU, 1024 CUDA cores',
+            power: '7 W / 15 W / MAXN',
+            benchDevice: 'jetson-cuda',
+            measured: false
+        },
+        'jetson-orin-cpu': {
+            label: 'Jetson Orin Nano (ARM CPU)',
+            cpu: '6-core Arm Cortex-A78AE',
+            gpu: 'None (CPU inference)',
+            power: '7 W / 15 W / MAXN',
+            benchDevice: 'jetson-cpu',
+            measured: false
         }
     };
+
+    // Populated at load time from results/benchmarks.csv via loadBenchmarks().
+    // Shape: benchmarks[benchDevice][precision][modelKey] = { latency_ms_median, fps, ... }
+    let benchmarks = null;
 
     function formatCompactNumber(value) {
         return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
@@ -221,51 +228,119 @@
         if (specGpu) specGpu.textContent = selectedHardware.gpu;
         if (specPower) specPower.textContent = selectedHardware.power;
 
-        let bestModel = 'iter3';
-        let bestScore = -Infinity;
+        const precision = quantized ? 'int8' : 'fp32';
+        const deviceRows = benchmarks?.[selectedHardware.benchDevice]?.[precision] || null;
+
+        let bestModel = null;
+        let bestLatency = Infinity;
+        let measuredCount = 0;
 
         modelStats.forEach((model) => {
-            const compatState = selectedHardware.compat[model.id] || 'warn';
-            let compatibilityScore = compatState === 'good' ? 28 : compatState === 'warn' ? 10 : -20;
-            compatibilityScore += model.edgeScore;
-            compatibilityScore += selectedHardware.multiplier * 6;
-            if (quantized && model.id === 'iter3') {
-                compatibilityScore += 12;
-            }
-
-            if (compatibilityScore > bestScore) {
-                bestScore = compatibilityScore;
-                bestModel = model.id;
-            }
-
-            const fpsBase = model.baselineFps[hardwareSelect.value];
-            const latencyBase = model.baselineLatency[hardwareSelect.value];
-            const fps = quantized ? fpsBase * selectedHardware.quantBoost : fpsBase;
-            const latency = quantized ? latencyBase * selectedHardware.quantLatencyBoost : latencyBase;
+            const row = deviceRows?.[model.key] || null;
 
             const fpsEl = document.getElementById(`fps-${model.id}`);
             const latEl = document.getElementById(`lat-${model.id}`);
             const barEl = document.getElementById(`bar-${model.id}`);
             const compatEl = document.getElementById(`compat-${model.id}`);
 
+            if (!row) {
+                // No measurement exists for this combination. Say so plainly
+                // rather than inventing a plausible-looking number.
+                if (fpsEl) fpsEl.textContent = 'not measured';
+                if (latEl) latEl.textContent = '—';
+                if (barEl) barEl.style.width = '0%';
+                if (compatEl) {
+                    compatEl.className = 'compatibility-badge warn';
+                    compatEl.textContent = 'No benchmark data';
+                }
+                return;
+            }
+
+            measuredCount += 1;
+            const latency = row.latency_ms_median;
+            const fps = row.fps;
+
+            if (latency < bestLatency) {
+                bestLatency = latency;
+                bestModel = model;
+            }
+
             if (fpsEl) fpsEl.textContent = `${fps.toFixed(fps < 10 ? 1 : 0)} FPS`;
-            if (latEl) latEl.textContent = `${Math.round(latency)} ms`;
+            if (latEl) latEl.textContent = `${latency.toFixed(latency < 10 ? 2 : 1)} ms`;
             if (barEl) {
-                const normalized = Math.max(4, Math.min(96, fps * 2.2));
-                barEl.style.width = `${normalized}%`;
+                // Bar is scaled against the fastest measured model on this
+                // device so the comparison stays honest across scales.
+                const fastest = Math.max(...Object.values(deviceRows).map((r) => r.fps));
+                barEl.style.width = `${Math.max(4, Math.min(96, (fps / fastest) * 96))}%`;
             }
             if (compatEl) {
-                const compatStateLabel = selectedHardware.compat[model.id] || 'warn';
-                compatEl.className = `compatibility-badge ${compatStateLabel === 'good' ? 'good' : compatStateLabel === 'warn' ? 'warn' : 'bad'}`;
-                compatEl.textContent = compatStateLabel === 'good' ? 'Recommended' : compatStateLabel === 'warn' ? 'Usable with constraints' : 'Not Recommended';
+                // Realtime thresholds, stated explicitly: >=25 FPS realtime,
+                // >=10 FPS usable for periodic monitoring, below that offline.
+                const state = fps >= 25 ? 'good' : fps >= 10 ? 'warn' : 'bad';
+                compatEl.className = `compatibility-badge ${state}`;
+                compatEl.textContent = state === 'good'
+                    ? 'Real-time (≥25 FPS)'
+                    : state === 'warn'
+                        ? 'Periodic monitoring (≥10 FPS)'
+                        : 'Offline / batch only';
             }
         });
 
         const recommendationEl = document.getElementById('deployment-summary-text');
         if (recommendationEl) {
-            const chosen = modelStats.find((model) => model.id === bestModel);
-            const optimizationText = quantized ? 'INT8 quantization' : 'FP32 inference';
-            recommendationEl.textContent = `${selectedHardware.label} pairs best with ${chosen?.name || 'Iteration 3'} using ${optimizationText}. The selected hardware profile favors ${chosen?.id === 'iter3' ? 'balanced throughput and compact size' : 'deployment efficiency'} for this project.`;
+            if (!measuredCount) {
+                recommendationEl.textContent = `No benchmarks have been run on ${selectedHardware.label} yet. `
+                    + 'Run scripts/run_benchmarks.py on that device to populate this view. '
+                    + 'This deck deliberately shows no estimated numbers.';
+            } else {
+                const optimizationText = quantized ? 'INT8' : 'FP32';
+                recommendationEl.textContent = `On ${selectedHardware.label} at ${optimizationText}, `
+                    + `${bestModel.name} has the lowest measured median latency `
+                    + `(${bestLatency.toFixed(2)} ms, batch size 1). `
+                    + `Measured for ${measuredCount} of ${modelStats.length} models; `
+                    + 'unmeasured combinations are shown as "not measured".';
+            }
+        }
+    }
+
+    /**
+     * Load measured benchmark rows from results/benchmarks.csv.
+     *
+     * Fails soft: if the file is absent (benchmarks not yet run) the simulator
+     * shows "not measured" everywhere instead of falling back to estimates.
+     */
+    async function loadBenchmarks() {
+        try {
+            const response = await fetch('../results/benchmarks.csv');
+            if (!response.ok) {
+                return;
+            }
+            const text = await response.text();
+            const lines = text.trim().split('\n');
+            const header = lines[0].split(',').map((h) => h.trim());
+            const parsed = {};
+
+            lines.slice(1).forEach((line) => {
+                const cells = line.split(',');
+                const row = {};
+                header.forEach((key, index) => {
+                    const raw = (cells[index] || '').trim();
+                    const num = Number(raw);
+                    row[key] = raw !== '' && !Number.isNaN(num) ? num : raw;
+                });
+                const { bench_device: dev, precision: prec, model_key: key } = row;
+                if (!dev || !prec || !key) {
+                    return;
+                }
+                parsed[dev] = parsed[dev] || {};
+                parsed[dev][prec] = parsed[dev][prec] || {};
+                parsed[dev][prec][key] = row;
+            });
+
+            benchmarks = parsed;
+        } catch (error) {
+            // Opened via file:// -- fetch is blocked. Leave benchmarks null.
+            benchmarks = null;
         }
     }
 

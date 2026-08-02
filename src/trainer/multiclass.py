@@ -72,7 +72,11 @@ class MulticlassTrainer(BaseTrainer):
         self,
         y_true: list[int],
         y_pred: list[int],
+        y_score: list[float] | None = None,
     ) -> dict[str, Any]:
+        # y_score (max softmax probability) is accepted for interface
+        # compatibility; multi-class threshold sweeps are not part of this
+        # iteration's evaluation.
         if not y_true:
             return {}
 

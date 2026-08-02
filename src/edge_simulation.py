@@ -75,13 +75,25 @@ def benchmark_inference_ms(
     model.eval()
     dummy_input = torch.randn(batch_size, 3, image_size, image_size, device=device)
 
+    def synchronize() -> None:
+        # CUDA kernel launches are asynchronous. Without this the timer measures
+        # launch overhead rather than execution, which made every figure this
+        # function previously produced -- including the derived speedup ratio --
+        # invalid. See src/benchmark.py for the full measurement protocol; this
+        # function is retained only for the in-training edge simulation and its
+        # numbers should not be quoted in preference to results/benchmarks.csv.
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+
     with torch.no_grad():
         for _ in range(warmup_iterations):
             model(dummy_input)
+        synchronize()
 
         start = time.perf_counter()
         for _ in range(benchmark_iterations):
             model(dummy_input)
+        synchronize()
         elapsed_sec = time.perf_counter() - start
 
     latency_ms = (elapsed_sec / benchmark_iterations) * 1000.0

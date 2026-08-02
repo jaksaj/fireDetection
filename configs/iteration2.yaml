@@ -1,4 +1,6 @@
 # Iteration 2: 4-Class Transfer Learning (MobileNetV3-Small)
+# Random seed for reproducibility. Override per-run with --seed.
+seed: 42
 data:
   root_dir: data
   train_split: train
@@ -8,7 +10,7 @@ data:
   smoke_class_id: 0
   image_size: 224
   batch_size: 32
-  num_workers: 4
+  num_workers: 10
   use_class_weights: true
 
 model:

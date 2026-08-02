@@ -683,9 +683,8 @@ def main() -> None:
     chkpt3 = args.checkpoint_dir / "iteration3" / "best_model.pt"
     if load_model_weights(chkpt3, model3, device):
         models["iteration3"] = model3
-
     # Iteration 4 setup
-    chkpt4 = args.checkpoint_dir / "iteration4" / "yolo26-fire" / "best.pt"
+    chkpt4 = args.checkpoint_dir / "iteration4" / "yolo26-dfire" / "weights" / "best.pt"
     model4 = load_iteration4_model(chkpt4)
     if model4 is not None:
         models["iteration4"] = model4

@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
+import numpy as np
 from ultralytics import YOLO
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,11 @@ class YOLO26DetectionTrainer:
             "plots": train_config.get("plots", True),
             "save": True,
             "verbose": True,
+            # Ultralytics defaults to seed=0/deterministic=True. Passing these
+            # explicitly means a multi-seed sweep actually varies the seed, and
+            # the value is recorded in the run's args.yaml rather than implied.
+            "seed": train_config.get("seed", 0),
+            "deterministic": train_config.get("deterministic", True),
         }
 
     def _configure_wandb(self) -> None:
@@ -97,15 +103,32 @@ class YOLO26DetectionTrainer:
         logger.info("Training complete: %s", metrics)
         return metrics
 
-    def validate(self, split: str = "val") -> dict[str, Any]:
-        """Run validation and return detection metrics for a dataset split."""
-        logger.info("Running YOLO26 validation on split '%s'.", split)
-        results = self.model.val(
-            data=self.data_yaml,
-            split=split,
-            device=DEVICE,
-            plots=False,
-        )
+    def validate(
+        self,
+        split: str = "val",
+        conf: float | None = None,
+    ) -> dict[str, Any]:
+        """
+        Run validation and return detection metrics for a dataset split.
+
+        ``conf`` is the detection confidence threshold. It was previously
+        declared in ``configs/iteration4.yaml`` as ``conf_threshold: 0.25`` and
+        never passed to anything -- a dead config key. Note that mAP is computed
+        by sweeping confidence, so this mainly affects the precision/recall
+        operating point and the confusion matrix, not mAP itself; leaving it at
+        the Ultralytics default (0.001) is the correct choice for mAP reporting.
+        """
+        logger.info("Running YOLO26 validation on split '%s' (conf=%s).", split, conf)
+        kwargs: dict[str, Any] = {
+            "data": self.data_yaml,
+            "split": split,
+            "device": DEVICE,
+            "plots": False,
+        }
+        if conf is not None:
+            kwargs["conf"] = conf
+
+        results = self.model.val(**kwargs)
         return self._extract_validation_metrics(results, prefix=split)
 
     def predict_sample(
@@ -147,12 +170,47 @@ class YOLO26DetectionTrainer:
                     metrics[f"{prefix}/{key}"] = float(value)
                 except (TypeError, ValueError):
                     metrics[f"{prefix}/{key}"] = value
-            return metrics
 
         box = getattr(results, "box", None)
         if box is not None:
-            metrics[f"{prefix}/mAP50"] = float(getattr(box, "map50", 0.0) or 0.0)
-            metrics[f"{prefix}/mAP50-95"] = float(getattr(box, "map", 0.0) or 0.0)
-            metrics[f"{prefix}/box_loss"] = float(getattr(box, "loss", 0.0) or 0.0)
+            metrics.setdefault(f"{prefix}/mAP50", float(getattr(box, "map50", 0.0) or 0.0))
+            metrics.setdefault(f"{prefix}/mAP50-95", float(getattr(box, "map", 0.0) or 0.0))
+
+            # Per-class AP. The aggregate mAP hides the single most important
+            # fact about this detector: on the D-Fire test split smoke reaches
+            # mAP50 0.816 while fire reaches only 0.672, so fire -- not smoke --
+            # is the harder class. Every write-up in this project previously
+            # asserted the opposite, because nothing ever extracted these
+            # numbers from the results object.
+            names = getattr(results, "names", None)
+            names = names if isinstance(names, dict) else {}
+
+            # `ap_class_index` is a numpy array. `array or []` evaluates
+            # `bool(array)`, which raises for any array with more than one
+            # element -- and it raised here *after* a full 50-epoch training
+            # run, so the process exited non-zero and the trained model was
+            # never recorded. Never apply truthiness to an array.
+            class_indices_raw = getattr(box, "ap_class_index", None)
+            if class_indices_raw is None:
+                class_indices: list = []
+            else:
+                class_indices = list(np.atleast_1d(np.asarray(class_indices_raw)))
+
+            for position, class_index in enumerate(class_indices):
+                class_name = names.get(int(class_index), str(class_index))
+                for attribute, label in (
+                    ("p", "precision"),
+                    ("r", "recall"),
+                    ("ap50", "mAP50"),
+                    ("ap", "mAP50-95"),
+                    ("f1", "f1"),
+                ):
+                    values = getattr(box, attribute, None)
+                    if values is None:
+                        continue
+                    try:
+                        metrics[f"{prefix}/{label}/{class_name}"] = float(values[position])
+                    except (IndexError, TypeError, ValueError):
+                        continue
 
         return metrics

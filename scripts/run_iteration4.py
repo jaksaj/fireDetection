@@ -14,6 +14,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from src.detection.data_config import DFireDetectionDataConfig
 from src.detection.export import YOLOEdgeExporter
 from src.detection.trainer import YOLO26DetectionTrainer
+from src.results import record_run
 from src.utils import configure_logging
 
 
@@ -31,6 +32,18 @@ def parse_args() -> argparse.Namespace:
         "--skip-export",
         action="store_true",
         help="Skip ONNX/TensorRT export and FPS benchmark after training.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed, passed through to Ultralytics. Overrides the config value.",
+    )
+    parser.add_argument(
+        "--tag",
+        type=str,
+        default="",
+        help="Suffix for the Ultralytics run name, so multi-seed runs do not collide.",
     )
     return parser.parse_args()
 
@@ -50,6 +63,20 @@ def main() -> None:
     train_cfg = config["training"]
     export_cfg = config.get("export", {})
     wandb_cfg = config["wandb"]
+
+    # Ultralytics seeds itself (its default is seed=0, deterministic=True), so
+    # unlike the PyTorch iterations this one was already reproducible. The seed
+    # is threaded through explicitly here so a multi-seed sweep can vary it and
+    # so the value lands in the recorded run config rather than being implicit.
+    seed = args.seed if args.seed is not None else config.get("seed")
+    if seed is not None:
+        train_cfg = {**train_cfg, "seed": int(seed)}
+
+    # Ultralytics writes to <checkpoint_dir>/<run_name>/, so the run name must
+    # differ per seed or each run overwrites the previous one's weights.
+    suffix = args.tag or (f"seed{seed}" if seed is not None else "")
+    if suffix:
+        train_cfg = {**train_cfg, "run_name": f"{train_cfg['run_name']}-{suffix}"}
 
     data_root = PROJECT_ROOT / data_cfg["root_dir"]
     data_yaml_path = PROJECT_ROOT / data_cfg["yaml_output"]
@@ -89,6 +116,22 @@ def main() -> None:
                 wandb.log(test_metrics)
         except ImportError:
             pass
+    else:
+        test_metrics = {}
+
+    # Persist to results/ like every other iteration. This was missing: the
+    # patch that added `record_run` to the other four run scripts skipped this
+    # one because iteration 4 does not use BaseTrainer. The consequence was
+    # silent -- a seeded run trained for 2.7 h, exited 0, and left no row in
+    # results/metrics.csv, so it looked like it had never run.
+    record_run(
+        "iteration4",
+        {**train_metrics, **test_metrics},
+        seed=seed,
+        split="test" if test_metrics else "val",
+        config={"iteration": 4, "task": "object_detection", **data_cfg, **model_cfg, **train_cfg},
+        extra={"config_path": str(args.config), "run_name": train_cfg["run_name"]},
+    )
 
     if args.skip_export or not export_cfg.get("enabled", True):
         return

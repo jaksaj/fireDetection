@@ -97,8 +97,6 @@ class RobustMulticlassTrainer(MulticlassTrainer):
         if best_checkpoint is not None:
             load_checkpoint(best_checkpoint, self.model, self.optimizer)
 
-        import wandb
-
         edge_metrics = simulate_edge_simulation(
             model=self.model,
             test_loader=test_loader,
@@ -106,8 +104,32 @@ class RobustMulticlassTrainer(MulticlassTrainer):
             checkpoint_dir=self.checkpoint_dir,
             image_size=image_size,
         )
-        step = (experiment_config or {}).get("_global_epoch_offset", head_epochs + finetune_epochs)
-        wandb.log(edge_metrics, step=step)
+
+        # `fit_two_phase` closes the W&B run in its own `finally` block, so by
+        # the time we get here there is no active run and `wandb.log` raises
+        # "You must call wandb.init() before wandb.log()". That crash happened
+        # *after* training had completed, so the whole run exited non-zero and
+        # nothing was persisted -- five seeded iteration-3 runs (~85 min of GPU)
+        # were lost to it before this was caught.
+        #
+        # The edge metrics are returned in the summary regardless, and
+        # `src.results.record_run` persists them, so W&B logging here is
+        # strictly best-effort.
+        try:
+            import wandb
+
+            if wandb.run is not None:
+                step = (experiment_config or {}).get(
+                    "_global_epoch_offset", head_epochs + finetune_epochs
+                )
+                wandb.log(edge_metrics, step=step)
+                logger.info("Edge simulation logged to W&B at step %d.", step)
+            else:
+                logger.info(
+                    "W&B run already closed — edge metrics kept in the run summary only."
+                )
+        except Exception as exc:  # noqa: BLE001 - logging must never fail a completed run
+            logger.warning("Could not log edge metrics to W&B: %s", exc)
+
         summary["edge_simulation"] = edge_metrics
-        logger.info("Edge simulation logged to W&B at step %d.", step)
         return summary

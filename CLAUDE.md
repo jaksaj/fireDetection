@@ -23,7 +23,8 @@ python scripts/run_iteration5.py                                     # Lightweig
 # Evaluate a trained checkpoint on the test split
 python scripts/evaluate_iteration1.py --checkpoint checkpoints/iteration1/best_model.pt
 python scripts/evaluate_iteration2.py --checkpoint checkpoints/iteration2/best_model.pt
-python scripts/evaluate_iteration4.py --checkpoint checkpoints/iteration4/best_model.pt
+# NOTE: iteration 4 takes --weights (not --checkpoint) and needs the Ultralytics path layout
+python scripts/evaluate_iteration4.py --weights checkpoints/iteration4/yolo26-dfire/weights/best.pt --split test
 
 # Edge/PTQ simulation and export
 python scripts/simulate_edge_iteration3.py --checkpoint checkpoints/iteration3/best_model.pt [--log-wandb]
@@ -37,9 +38,46 @@ python scripts/inspect_segmentation_dataset.py
 python scripts/visualize_predictions.py
 ```
 
+### Thesis measurement pipeline
+
+These scripts produce the machine-readable evidence under `results/`. They are
+the source of every number that should appear in the thesis; nothing is
+transcribed by hand from a dashboard.
+
+```bash
+# Dataset statistics, split manifest, and cross-split leakage check
+python scripts/dataset_stats.py [--hash-check]      # -> results/dataset_stats.{json,csv}, split_manifest.csv
+
+# Inference cost: latency/FLOPs/memory across device x precision x backend.
+# Runs unchanged on the workstation and on a Jetson; rows are tagged per host.
+python scripts/run_benchmarks.py [--batch-sizes 1 4 8 16] [--quick]   # -> results/benchmarks.csv
+
+# The common-task comparison: every paradigm collapsed to image-level presence
+# on the same test images, so accuracy is comparable across methods.
+python scripts/evaluate_common.py [--sweep]         # -> results/common_eval.csv
+
+# Robustness under a fixed corruption suite (inference only, no retraining)
+python scripts/evaluate_robustness.py               # -> results/robustness.csv
+
+# Backbone comparison at identical budget/resolution/seed
+python scripts/run_comparison.py --all --seeds 42 43 44 [--subprocess]
+
+# Multi-seed reruns of the five methods
+python scripts/run_seeds.py --seeds 42 43 44 [--methods iteration1 iteration2]
+
+# Regenerate every thesis table and figure from results/*.csv
+python scripts/make_tables.py                       # -> results/figures/, results/tables/
+```
+
 All scripts insert the project root onto `sys.path` themselves (`PROJECT_ROOT = Path(__file__).resolve().parent.parent`), so run them from anywhere with the repo's Python environment active — no `PYTHONPATH` setup needed.
 
-Every training script takes `--config <path>` pointing at a YAML file under `configs/` (`data`, `model`, `training`, `wandb` sections; iteration 4 also has `export`). To change hyperparameters, edit or copy the relevant YAML rather than passing CLI flags — the scripts have no other tunable arguments.
+Every training script takes `--config <path>` pointing at a YAML file under `configs/` (`data`, `model`, `training`, `wandb` sections; iteration 4 also has `export`). To change hyperparameters, edit or copy the relevant YAML rather than passing CLI flags. The training scripts additionally accept `--seed N` (overrides the config's `seed:`) and `--tag NAME` (suffixes the checkpoint directory so multi-seed sweeps do not overwrite each other).
+
+### Reproducibility and results
+
+- **Seeding.** `src/utils.set_seed` seeds Python/NumPy/torch/CUDA; DataLoaders additionally need `worker_init_fn=seed_worker` and `generator=make_generator(seed)`, which every `DataModule` wires up when given a `seed=`. A seeded run sets `cudnn.deterministic=True` and `cudnn.benchmark=False`; benchmark runs deliberately invert this, because deterministic kernel selection perturbs the quantity being measured.
+- **Results.** `src/results.record_run` appends every run's metrics to `results/metrics.csv` (long format) and writes a full JSON record under `results/runs/`, tagged with git SHA, dirty flag, seed, and environment. `src/results.append_rows` handles the wider schemas used by the benchmark and evaluation CSVs.
+- **Devices.** `src/utils.resolve_device` replaces the old hardcoded `torch.device("cuda")`. Models take a `device=` argument and no longer force themselves onto CUDA in `__init__`, so they can be instantiated on CPU for edge benchmarking.
 
 ## Architecture
 
