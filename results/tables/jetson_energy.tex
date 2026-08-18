@@ -1,0 +1,54 @@
+\begin{table}
+\caption{Jetson Orin Nano: energy per inference}
+\begin{tabular}{llllrrrrr}
+\toprule
+model\_key & backend & precision & power\_mode & latency\_ms\_median & load\_power\_w & idle\_power\_w & energy\_total\_mj & energy\_marginal\_mj \\
+\midrule
+iteration1 & onnxruntime[CPU] & fp32 & 15W & 13.6701 & 8.8540 & 4.6140 & 121.0390 & 57.9670 \\
+iteration1 & tensorrt[trtexec] & fp16 & 15W & 0.6046 & 10.2440 & 4.6140 & 6.1930 & 3.4040 \\
+iteration1 & tensorrt[trtexec] & fp32 & 15W & 1.3765 & 10.2640 & 4.6140 & 14.1270 & 7.7770 \\
+iteration1 & onnxruntime[CPU] & fp32 & 25W & 15.1269 & 8.1850 & 4.6460 & 123.8080 & 53.5200 \\
+iteration1 & tensorrt[trtexec] & fp16 & 25W & 0.4014 & 16.0520 & 4.6460 & 6.4430 & 4.5780 \\
+iteration1 & tensorrt[trtexec] & fp32 & 25W & 0.9249 & 16.1270 & 4.6460 & 14.9160 & 10.6180 \\
+iteration1 & onnxruntime[CPU] & fp32 & MAXN\_SUPER & 12.0127 & 10.3120 & 4.6440 & 123.8710 & 68.0890 \\
+iteration1 & tensorrt[trtexec] & fp16 & MAXN\_SUPER & 0.3709 & 18.0720 & 4.6440 & 6.7020 & 4.9800 \\
+iteration1 & tensorrt[trtexec] & fp32 & MAXN\_SUPER & 0.8461 & 18.0310 & 4.6440 & 15.2560 & 11.3270 \\
+iteration2 & onnxruntime[CPU] & fp32 & 15W & 5.1429 & 8.8490 & 4.6140 & 45.5090 & 21.7800 \\
+iteration2 & tensorrt[trtexec] & fp16 & 15W & 1.3093 & 6.9190 & 4.6140 & 9.0590 & 3.0180 \\
+iteration2 & tensorrt[trtexec] & fp32 & 15W & 1.7992 & 7.1860 & 4.6140 & 12.9300 & 4.6280 \\
+iteration2 & onnxruntime[CPU] & fp32 & 25W & 5.6235 & 8.1800 & 4.6460 & 46.0020 & 19.8730 \\
+iteration2 & tensorrt[trtexec] & fp16 & 25W & 0.9756 & 8.3090 & 4.6460 & 8.1060 & 3.5730 \\
+iteration2 & tensorrt[trtexec] & fp32 & 25W & 1.3152 & 9.0110 & 4.6460 & 11.8510 & 5.7400 \\
+iteration2 & onnxruntime[CPU] & fp32 & MAXN\_SUPER & 4.5440 & 10.0020 & 4.6440 & 45.4490 & 24.3490 \\
+iteration2 & tensorrt[trtexec] & fp16 & MAXN\_SUPER & 0.9040 & 9.0420 & 4.6440 & 8.1740 & 3.9760 \\
+iteration2 & tensorrt[trtexec] & fp32 & MAXN\_SUPER & 1.2197 & 9.9070 & 4.6440 & 12.0840 & 6.4210 \\
+iteration3 & onnxruntime[CPU] & fp32 & 15W & 5.1290 & 8.8270 & 4.6140 & 45.2740 & 21.6090 \\
+iteration3 & tensorrt[trtexec] & fp16 & 15W & 1.3196 & 6.9520 & 4.6140 & 9.1740 & 3.0850 \\
+iteration3 & tensorrt[trtexec] & fp32 & 15W & 1.8857 & 7.1880 & 4.6140 & 13.5550 & 4.8550 \\
+iteration3 & onnxruntime[CPU] & fp32 & 25W & 5.6200 & 8.1780 & 4.6460 & 45.9600 & 19.8470 \\
+iteration3 & tensorrt[trtexec] & fp16 & 25W & 0.9812 & 8.3040 & 4.6460 & 8.1470 & 3.5880 \\
+iteration3 & tensorrt[trtexec] & fp32 & 25W & 1.3721 & 9.1700 & 4.6460 & 12.5820 & 6.2070 \\
+iteration3 & onnxruntime[CPU] & fp32 & MAXN\_SUPER & 4.5652 & 9.9560 & 4.6440 & 45.4500 & 24.2510 \\
+iteration3 & tensorrt[trtexec] & fp16 & MAXN\_SUPER & 0.9163 & 9.1210 & 4.6440 & 8.3570 & 4.1020 \\
+iteration3 & tensorrt[trtexec] & fp32 & MAXN\_SUPER & 1.2705 & 10.1090 & 4.6440 & 12.8440 & 6.9440 \\
+iteration4 & onnxruntime[CPU] & fp32 & 15W & 87.8021 & 8.8010 & 4.6140 & 772.7190 & 367.6100 \\
+iteration4 & tensorrt[trtexec] & fp16 & 15W & 9.0345 & 9.1760 & 4.6140 & 82.8980 & 41.2140 \\
+iteration4 & tensorrt[trtexec] & fp32 & 15W & 13.7880 & 9.8750 & 4.6140 & 136.1530 & 72.5370 \\
+iteration4 & onnxruntime[CPU] & fp32 & 25W & 95.5738 & 8.3820 & 4.6460 & 801.0570 & 356.9740 \\
+iteration4 & tensorrt[trtexec] & fp16 & 25W & 6.0211 & 14.2430 & 4.6460 & 85.7620 & 57.7840 \\
+iteration4 & tensorrt[trtexec] & fp32 & 25W & 9.2517 & 15.4520 & 4.6460 & 142.9570 & 99.9690 \\
+iteration4 & onnxruntime[CPU] & fp32 & MAXN\_SUPER & 77.7567 & 10.5070 & 4.6440 & 817.0150 & 455.9470 \\
+iteration4 & tensorrt[trtexec] & fp16 & MAXN\_SUPER & 5.5486 & 15.8280 & 4.6440 & 87.8200 & 62.0550 \\
+iteration4 & tensorrt[trtexec] & fp32 & MAXN\_SUPER & 8.5325 & 17.0550 & 4.6440 & 145.5210 & 105.9000 \\
+iteration5 & onnxruntime[CPU] & fp32 & 15W & 263.4449 & 9.0070 & 4.6140 & 2372.7820 & 1157.2770 \\
+iteration5 & tensorrt[trtexec] & fp16 & 15W & 6.5068 & 11.5650 & 4.6140 & 75.2500 & 45.2280 \\
+iteration5 & tensorrt[trtexec] & fp32 & 15W & 17.4768 & 11.3780 & 4.6140 & 198.8590 & 118.2230 \\
+iteration5 & onnxruntime[CPU] & fp32 & 25W & 290.5154 & 8.2760 & 4.6460 & 2404.4290 & 1054.5510 \\
+iteration5 & tensorrt[trtexec] & fp16 & 25W & 4.3536 & 18.8110 & 4.6460 & 81.8950 & 61.6660 \\
+iteration5 & tensorrt[trtexec] & fp32 & 25W & 11.7017 & 18.4200 & 4.6460 & 215.5500 & 161.1780 \\
+iteration5 & onnxruntime[CPU] & fp32 & MAXN\_SUPER & 230.8251 & 10.4500 & 4.6440 & 2412.1530 & 1340.3010 \\
+iteration5 & tensorrt[trtexec] & fp16 & MAXN\_SUPER & 3.9573 & 21.4310 & 4.6440 & 84.8080 & 66.4320 \\
+iteration5 & tensorrt[trtexec] & fp32 & MAXN\_SUPER & 10.6643 & 20.4640 & 4.6440 & 218.2390 & 168.7190 \\
+\bottomrule
+\end{tabular}
+\end{table}

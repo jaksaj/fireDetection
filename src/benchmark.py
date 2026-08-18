@@ -431,6 +431,21 @@ def benchmark_onnx_model(
     session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     session = ort.InferenceSession(str(onnx_path), session_options, providers=providers)
 
+    # ONNX Runtime lists a provider in `get_available_providers()` even when the
+    # underlying libraries are absent, and then **silently falls back to CPU** at
+    # session creation. Without this check a CPU measurement would be recorded
+    # and labelled "CUDA" or "TensorRT" -- exactly the kind of mislabelled number
+    # this project exists to eliminate. Verify what actually got bound.
+    actually_used = session.get_providers()
+    if actually_used and actually_used[0] != providers[0]:
+        logger.warning(
+            "Requested %s but ONNX Runtime bound %s — skipping rather than "
+            "recording a mislabelled row.",
+            providers[0],
+            actually_used[0],
+        )
+        return None
+
     input_meta = session.get_inputs()[0]
     # Honour the exported graph's fixed spatial dims when it has them; a static
     # export will reject a differently-shaped input.

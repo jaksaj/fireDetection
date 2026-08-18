@@ -392,6 +392,102 @@ def jetson_outputs(benchmarks: pd.DataFrame) -> None:
     save_figure(fig, "jetson_power_modes")
 
 
+def energy_outputs(energy: pd.DataFrame, common: pd.DataFrame | None) -> None:
+    """Energy per inference: the metric edge deployment actually budgets for."""
+    order = [m for m in ["15W", "25W", "MAXN_SUPER"] if m in set(energy["power_mode"])]
+    gpu = energy[
+        energy["backend"].str.contains("tensorrt", na=False) & (energy["precision"] == "fp16")
+    ]
+
+    save_table(
+        energy[
+            ["model_key", "backend", "precision", "power_mode", "latency_ms_median",
+             "load_power_w", "idle_power_w", "energy_total_mj", "energy_marginal_mj"]
+        ].sort_values(["model_key", "power_mode", "backend", "precision"]),
+        "jetson_energy",
+        "Jetson Orin Nano: energy per inference",
+    )
+
+    # --- Energy vs latency across power modes -------------------------------
+    if len(order) > 1:
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        for method, style in METHOD_STYLE.items():
+            subset = gpu[gpu["model_key"] == method]
+            if subset.empty:
+                continue
+            latencies = [subset[subset["power_mode"] == m]["latency_ms_median"].min() for m in order]
+            energies = [subset[subset["power_mode"] == m]["energy_total_mj"].min() for m in order]
+            axes[0].plot(range(len(order)), energies, marker=style["marker"],
+                         color=style["color"], label=style["label"])
+            axes[1].plot(latencies, energies, marker=style["marker"],
+                         color=style["color"], label=style["label"])
+            for index, mode in enumerate(order):
+                axes[1].annotate(mode.replace("_SUPER", ""), (latencies[index], energies[index]),
+                                 fontsize=6, xytext=(3, 3), textcoords="offset points")
+
+        axes[0].set_xticks(range(len(order)))
+        axes[0].set_xticklabels(order)
+        axes[0].set_xlabel("Power mode")
+        axes[0].set_ylabel("Energy per inference (mJ)")
+        axes[0].set_yscale("log")
+        axes[0].set_title("Energy rises with power mode\n(the fastest mode is the least efficient)")
+        axes[0].grid(alpha=0.3)
+        axes[0].legend(fontsize=7)
+
+        axes[1].set_xlabel("Median latency (ms)")
+        axes[1].set_ylabel("Energy per inference (mJ)")
+        axes[1].set_xscale("log")
+        axes[1].set_yscale("log")
+        axes[1].set_title("Latency vs energy trade-off\n(down-left is better; modes labelled)")
+        axes[1].grid(alpha=0.3)
+        fig.tight_layout()
+        save_figure(fig, "jetson_energy_tradeoff")
+
+    # --- Accuracy vs energy -------------------------------------------------
+    if common is None:
+        return
+    binary = common[common["axis"] == "binary"]
+    best = binary.loc[binary.groupby("method")["f1_macro"].idxmax()]
+
+    fig, axis = plt.subplots(figsize=(9, 6))
+    rows = []
+    for _, row in best.iterrows():
+        method = row["method"]
+        subset = gpu[gpu["model_key"] == method]
+        if method not in METHOD_STYLE or subset.empty:
+            continue
+        style = METHOD_STYLE[method]
+        # Cheapest mode for this model -- the best case a deployment could pick.
+        cheapest = subset.loc[subset["energy_total_mj"].idxmin()]
+        axis.scatter(cheapest["energy_total_mj"], row["f1_macro"], s=160,
+                     color=style["color"], marker=style["marker"],
+                     edgecolors="black", linewidths=0.8)
+        axis.annotate(
+            f"{style['label']}\n{cheapest['energy_total_mj']:.1f} mJ @ {cheapest['power_mode']}",
+            (cheapest["energy_total_mj"], row["f1_macro"]),
+            fontsize=7, xytext=(6, -10), textcoords="offset points",
+        )
+        rows.append({
+            "method": method, "label": style["label"],
+            "best_mode": cheapest["power_mode"],
+            "energy_mj": cheapest["energy_total_mj"],
+            "latency_ms": cheapest["latency_ms_median"],
+            "f1_macro": row["f1_macro"],
+            "mj_per_f1_point": cheapest["energy_total_mj"] / row["f1_macro"],
+        })
+
+    axis.set_xscale("log")
+    axis.set_xlabel("Energy per inference (mJ, log scale) — Jetson GPU, TensorRT FP16")
+    axis.set_ylabel("Macro-F1 on the common binary 'fire present' task")
+    axis.set_title("Accuracy vs energy: what each paradigm costs per frame")
+    axis.grid(alpha=0.3)
+    save_figure(fig, "accuracy_vs_energy")
+
+    if rows:
+        save_table(pd.DataFrame(rows).sort_values("energy_mj"),
+                   "accuracy_vs_energy", "Accuracy per millijoule, cheapest power mode")
+
+
 def common_eval_outputs(common: pd.DataFrame) -> None:
     for axis_name in common["axis"].unique():
         subset = common[common["axis"] == axis_name].copy()
@@ -603,6 +699,7 @@ def main() -> None:
     robustness = load("robustness.csv")
     metrics = load("metrics.csv")
     dataset = load("dataset_stats.csv")
+    energy = load("jetson_energy.csv")
 
     if benchmarks is not None:
         benchmark_outputs(benchmarks)
@@ -617,6 +714,8 @@ def main() -> None:
         seed_outputs(metrics)
     if dataset is not None:
         dataset_outputs(dataset)
+    if energy is not None:
+        energy_outputs(energy, common)
 
     logger.info("Figures -> %s", FIGURES_DIR)
     logger.info("Tables  -> %s", TABLES_DIR)

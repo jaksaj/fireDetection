@@ -3,6 +3,7 @@
 | model_key   | bench_device           | backend           | precision   |   params |   gflops |   size_mb |   latency_ms_median |   latency_ms_p95 |       fps |   peak_mem_mb |
 |:------------|:-----------------------|:------------------|:------------|---------:|---------:|----------:|--------------------:|-----------------:|----------:|--------------:|
 | iteration1  | cpu                    | pytorch           | fp32        |   389153 |   1.4982 |    4.4781 |              6.2554 |           9.9713 |  159.8619 |      992.8086 |
+| iteration1  | cpu                    | onnxruntime[CPU]  | fp32        |        0 |   0.0000 |    1.4860 |              2.3401 |           3.9020 |  427.3230 |        0.0000 |
 | iteration1  | cpu                    | pytorch           | int8        |   388896 |   0.0000 |    4.4781 |              6.3203 |           9.1113 |  158.2203 |     1208.2773 |
 | iteration1  | cuda                   | pytorch           | fp16        |   389153 |   0.0000 |    4.4781 |              0.8278 |           0.8620 | 1207.9483 |       16.8555 |
 | iteration1  | cuda                   | pytorch           | fp32        |   389153 |   1.4982 |    4.4781 |              0.7171 |           0.7402 | 1394.5057 |       22.4424 |
@@ -16,6 +17,7 @@
 | iteration1  | jetson-cuda@MAXN_SUPER | tensorrt[trtexec] | fp16        |        0 |   0.0000 |    0.8594 |              0.3709 |           0.3733 | 2696.5080 |        0.0000 |
 | iteration1  | jetson-cuda@MAXN_SUPER | tensorrt[trtexec] | fp32        |        0 |   0.0000 |    1.6044 |              0.8461 |           0.8499 | 1181.9367 |        0.0000 |
 | iteration2  | cpu                    | pytorch           | fp32        |  1075748 |   0.1220 |   10.3282 |              4.8977 |           6.3502 |  204.1796 |     1541.3008 |
+| iteration2  | cpu                    | onnxruntime[CPU]  | fp32        |        0 |   0.0000 |    4.1220 |              0.9616 |           1.2823 | 1039.9334 |        0.0000 |
 | iteration2  | cpu                    | pytorch           | int8        |   927008 |   0.0000 |   10.3282 |              5.0673 |           6.8747 |  197.3438 |     1556.8320 |
 | iteration2  | cuda                   | pytorch           | fp16        |  1075748 |   0.0000 |   10.3282 |              6.4817 |           6.7051 |  154.2793 |       18.4155 |
 | iteration2  | cuda                   | pytorch           | fp32        |  1075748 |   0.1220 |   10.3282 |              5.6924 |           5.8266 |  175.6728 |       14.8223 |
@@ -29,6 +31,7 @@
 | iteration2  | jetson-cuda@MAXN_SUPER | tensorrt[trtexec] | fp16        |        0 |   0.0000 |    3.0083 |              0.9040 |           0.9102 | 1106.2045 |        0.0000 |
 | iteration2  | jetson-cuda@MAXN_SUPER | tensorrt[trtexec] | fp32        |        0 |   0.0000 |    5.0492 |              1.2197 |           1.2256 |  819.8536 |        0.0000 |
 | iteration3  | cpu                    | pytorch           | fp32        |  1075748 |   0.1220 |   10.3283 |              4.8521 |           5.7085 |  206.0942 |     1556.5156 |
+| iteration3  | cpu                    | onnxruntime[CPU]  | fp32        |        0 |   0.0000 |    4.1220 |              1.0509 |           1.4037 |  951.5201 |        0.0000 |
 | iteration3  | cpu                    | pytorch           | int8        |   927008 |   0.0000 |   10.3283 |              5.0398 |           5.9131 |  198.4206 |     1556.4844 |
 | iteration3  | cuda                   | pytorch           | fp16        |  1075748 |   0.0000 |   10.3283 |              6.5127 |           6.6856 |  153.5461 |       11.5630 |
 | iteration3  | cuda                   | pytorch           | fp32        |  1075748 |   0.1220 |   10.3283 |              5.8132 |           5.9131 |  172.0238 |       14.8223 |
@@ -43,6 +46,7 @@
 | iteration3  | jetson-cuda@MAXN_SUPER | tensorrt[trtexec] | fp32        |        0 |   0.0000 |    5.0211 |              1.2705 |           1.2769 |  787.0855 |        0.0000 |
 | iteration4  | cpu                    | pytorch           | fp32        |  2504580 |   5.7739 |    5.1172 |             45.1913 |          57.6063 |   22.1282 |     1825.5391 |
 | iteration4  | cpu                    | onnxruntime[CPU]  | fp32        |        0 |   0.0000 |    9.3517 |             23.3888 |          25.6389 |   42.7556 |        0.0000 |
+| iteration4  | cpu                    | onnxruntime[CPU]  | fp32        |        0 |   0.0000 |    9.6608 |             22.7728 |          24.2467 |   43.9119 |        0.0000 |
 | iteration4  | cuda                   | pytorch           | fp16        |  2504580 |   0.0000 |    5.1172 |             19.5128 |          21.8061 |   51.2483 |       34.3491 |
 | iteration4  | cuda                   | pytorch           | fp32        |  2504580 |   5.7739 |    5.1172 |             16.6199 |          17.1403 |   60.1690 |       47.7065 |
 | iteration4  | jetson-cpu@15W         | onnxruntime[CPU]  | fp32        |        0 |   0.0000 |    9.6608 |             87.8021 |          93.7858 |   11.3892 |        0.0000 |
@@ -55,6 +59,7 @@
 | iteration4  | jetson-cuda@MAXN_SUPER | tensorrt[trtexec] | fp16        |        0 |   0.0000 |    9.1253 |              5.5486 |           5.5598 |  180.2263 |        0.0000 |
 | iteration4  | jetson-cuda@MAXN_SUPER | tensorrt[trtexec] | fp32        |        0 |   0.0000 |   12.7323 |              8.5325 |           8.5535 |  117.1994 |        0.0000 |
 | iteration5  | cpu                    | pytorch           | fp32        |  7849667 |  28.2098 |   89.9389 |            107.7754 |         118.9886 |    9.2786 |     2417.7656 |
+| iteration5  | cpu                    | onnxruntime[CPU]  | fp32        |        0 |   0.0000 |   29.9446 |             69.4313 |          76.0823 |   14.4027 |        0.0000 |
 | iteration5  | cpu                    | pytorch           | int8        |  7849667 |   0.0000 |   89.9389 |             76.5709 |         100.5105 |   13.0598 |     2425.9688 |
 | iteration5  | cuda                   | pytorch           | fp16        |  7849667 |   0.0000 |   89.9389 |              3.8975 |           4.6782 |  256.5714 |       75.1880 |
 | iteration5  | cuda                   | pytorch           | fp32        |  7849667 |  28.2098 |   89.9389 |              4.8795 |           5.7440 |  204.9390 |      130.4590 |

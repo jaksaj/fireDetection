@@ -368,6 +368,74 @@ FLOPs predicts latency, and the ranking flips between CPU and GPU on both.
 
 ---
 
+## 2.12 Energy per inference — the metric edge deployment actually budgets for
+
+Measured with `tegrastats` power rails (`jetson/measure_energy.py`), 45 rows in
+`results/jetson_energy.csv`. Idle board draw is 4.6 W; energy is reported both as
+**total** (mean power under load × latency, what a battery sees) and **marginal**
+(load minus idle × latency, the cost of the computation itself).
+
+### Race to idle: the GPU is the power-saving choice
+
+At 25W, GPU (TensorRT FP16) versus ARM CPU:
+
+| Model | GPU energy | CPU energy | GPU advantage | GPU power | CPU power |
+|---|---|---|---|---|---|
+| FireCNN | **6.44 mJ** | 123.81 mJ | 19× | 16.05 W | 8.18 W |
+| MobileNetV3-S | **8.11 mJ** | 46.00 mJ | 5.7× | 8.31 W | 8.18 W |
+| MobileNetV3-S robust | **8.15 mJ** | 45.96 mJ | 5.6× | 8.30 W | 8.18 W |
+| YOLO26n | **85.76 mJ** | 801.06 mJ | 9.3× | 14.24 W | 8.38 W |
+| U-Net | **81.89 mJ** | 2404.43 mJ | **29×** | 18.81 W | 8.28 W |
+
+The GPU draws up to **2.3× more power** yet uses **5.6–29× less energy per
+frame**, because it finishes 30–60× sooner. For a battery or solar-powered
+sensor node, running inference on the GPU is not a luxury — it is the
+energy-efficient option. This is the clearest practical result in the project and
+it is invisible to latency-only analysis.
+
+### The fastest power mode is never the most efficient
+
+GPU FP16, all three modes:
+
+| Model | 15W | 25W | MAXN_SUPER | Cheapest |
+|---|---|---|---|---|
+| FireCNN | **6.19 mJ** | 6.44 | 6.70 | 15W |
+| MobileNetV3-S | 9.06 | **8.11 mJ** | 8.17 | 25W |
+| MobileNetV3-S robust | 9.17 | **8.15 mJ** | 8.36 | 25W |
+| YOLO26n | **82.90 mJ** | 85.76 | 87.82 | 15W |
+| U-Net | **75.25 mJ** | 81.90 | 84.81 | 15W |
+
+**MAXN_SUPER is the cheapest mode for no model.** It is always the fastest and
+almost always the most wasteful. On the U-Net, going 15W → MAXN_SUPER cuts
+latency 39% (6.51 → 3.96 ms) but *raises* energy 13% (75.25 → 84.81 mJ), because
+power climbs 85% (11.56 → 21.43 W). This is voltage–frequency scaling: power
+grows superlinearly with clock, so the energy integral turns unfavourable even as
+latency improves.
+
+The practical rule: **choose the lowest power mode that still meets your frame
+deadline.** Since every model is real-time even at 15W (worst case 9.03 ms,
+111 FPS), 15W is the correct default for this workload, and the higher modes buy
+headroom rather than efficiency.
+
+### Accuracy per millijoule
+
+| Method | Energy (cheapest mode) | Macro-F1 | mJ per F1 point |
+|---|---|---|---|
+| FireCNN | 6.19 mJ @ 15W | 0.9169 | **6.8** |
+| MobileNetV3-S robust | 8.15 mJ @ 25W | 0.9510 | **8.6** |
+| MobileNetV3-S | 8.11 mJ @ 25W | 0.9411 | 8.6 |
+| YOLO26n | 82.90 mJ @ 15W | 0.9689 | 85.6 |
+| U-Net | 75.25 mJ @ 15W | 0.6999 | 107.5 |
+
+**YOLO26n costs 10.2× the energy of MobileNetV3-robust to buy 1.8 points of
+macro-F1.** For a mains-powered installation that is free; for a battery or solar
+node it is close to indefensible. This is the concrete deployment recommendation
+the thesis was set up to produce, and it now rests on measurement rather than
+intuition. Figures: `results/figures/accuracy_vs_energy.png`,
+`results/figures/jetson_energy_tradeoff.png`.
+
+---
+
 ## 3. Data integrity: the original blocker is closed
 
 The audit's top blocker was that nobody knew how `data/val/` was created, with a
