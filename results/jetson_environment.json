@@ -1,0 +1,15 @@
+{
+  "device_model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+  "jetpack": "# R39 (release), REVISION: 2.0, GCID: 45755727, BOARD: generic, EABI: aarch64, DATE: Mon Jun  1 09:28:48 PM UTC 2026",
+  "power_mode": "25W",
+  "hostname": "jetson",
+  "machine": "aarch64",
+  "python": "3.12.3",
+  "cpu_count": 6,
+  "torch": "unavailable (ModuleNotFoundError)",
+  "onnxruntime": "1.29.0",
+  "onnxruntime_providers": [
+    "AzureExecutionProvider",
+    "CPUExecutionProvider"
+  ]
+}

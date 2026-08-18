@@ -1,0 +1,54 @@
+\begin{table}
+\caption{Jetson Orin Nano: latency by power mode}
+\begin{tabular}{lllllrrr}
+\toprule
+model\_key & tier & mode & backend & precision & latency\_ms\_median & latency\_ms\_p95 & fps \\
+\midrule
+iteration1 & jetson-cpu & 15W & onnxruntime[CPU] & fp32 & 13.6701 & 13.8595 & 73.1522 \\
+iteration1 & jetson-cpu & 25W & onnxruntime[CPU] & fp32 & 15.1269 & 15.4901 & 66.1073 \\
+iteration1 & jetson-cpu & MAXN\_SUPER & onnxruntime[CPU] & fp32 & 12.0127 & 12.2681 & 83.2453 \\
+iteration1 & jetson-cuda & 15W & tensorrt[trtexec] & fp16 & 0.6046 & 0.6096 & 1653.9478 \\
+iteration1 & jetson-cuda & 15W & tensorrt[trtexec] & fp32 & 1.3765 & 1.3818 & 726.5013 \\
+iteration1 & jetson-cuda & 25W & tensorrt[trtexec] & fp16 & 0.4014 & 0.4045 & 2491.4853 \\
+iteration1 & jetson-cuda & 25W & tensorrt[trtexec] & fp32 & 0.9249 & 0.9353 & 1081.2377 \\
+iteration1 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp16 & 0.3709 & 0.3733 & 2696.5080 \\
+iteration1 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp32 & 0.8461 & 0.8499 & 1181.9367 \\
+iteration2 & jetson-cpu & 15W & onnxruntime[CPU] & fp32 & 5.1429 & 5.7926 & 194.4421 \\
+iteration2 & jetson-cpu & 25W & onnxruntime[CPU] & fp32 & 5.6235 & 7.7594 & 177.8267 \\
+iteration2 & jetson-cpu & MAXN\_SUPER & onnxruntime[CPU] & fp32 & 4.5440 & 4.6637 & 220.0720 \\
+iteration2 & jetson-cuda & 15W & tensorrt[trtexec] & fp16 & 1.3093 & 1.3164 & 763.7494 \\
+iteration2 & jetson-cuda & 15W & tensorrt[trtexec] & fp32 & 1.7992 & 1.8064 & 555.8057 \\
+iteration2 & jetson-cuda & 25W & tensorrt[trtexec] & fp16 & 0.9756 & 0.9822 & 1025.0250 \\
+iteration2 & jetson-cuda & 25W & tensorrt[trtexec] & fp32 & 1.3152 & 1.3215 & 760.3464 \\
+iteration2 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp16 & 0.9040 & 0.9102 & 1106.2045 \\
+iteration2 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp32 & 1.2197 & 1.2256 & 819.8536 \\
+iteration3 & jetson-cpu & 15W & onnxruntime[CPU] & fp32 & 5.1290 & 5.2774 & 194.9680 \\
+iteration3 & jetson-cpu & 25W & onnxruntime[CPU] & fp32 & 5.6200 & 5.8855 & 177.9346 \\
+iteration3 & jetson-cpu & MAXN\_SUPER & onnxruntime[CPU] & fp32 & 4.5652 & 4.6877 & 219.0492 \\
+iteration3 & jetson-cuda & 15W & tensorrt[trtexec] & fp16 & 1.3196 & 1.3264 & 757.8169 \\
+iteration3 & jetson-cuda & 15W & tensorrt[trtexec] & fp32 & 1.8857 & 1.8928 & 530.2958 \\
+iteration3 & jetson-cuda & 25W & tensorrt[trtexec] & fp16 & 0.9812 & 0.9875 & 1019.1592 \\
+iteration3 & jetson-cuda & 25W & tensorrt[trtexec] & fp32 & 1.3721 & 1.3779 & 728.8258 \\
+iteration3 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp16 & 0.9163 & 0.9226 & 1091.3933 \\
+iteration3 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp32 & 1.2705 & 1.2769 & 787.0855 \\
+iteration4 & jetson-cpu & 15W & onnxruntime[CPU] & fp32 & 87.8021 & 93.7858 & 11.3892 \\
+iteration4 & jetson-cpu & 25W & onnxruntime[CPU] & fp32 & 95.5738 & 102.2495 & 10.4631 \\
+iteration4 & jetson-cpu & MAXN\_SUPER & onnxruntime[CPU] & fp32 & 77.7567 & 82.4884 & 12.8606 \\
+iteration4 & jetson-cuda & 15W & tensorrt[trtexec] & fp16 & 9.0345 & 9.0505 & 110.6862 \\
+iteration4 & jetson-cuda & 15W & tensorrt[trtexec] & fp32 & 13.7880 & 13.8140 & 72.5268 \\
+iteration4 & jetson-cuda & 25W & tensorrt[trtexec] & fp16 & 6.0211 & 6.0332 & 166.0821 \\
+iteration4 & jetson-cuda & 25W & tensorrt[trtexec] & fp32 & 9.2517 & 9.2661 & 108.0881 \\
+iteration4 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp16 & 5.5486 & 5.5598 & 180.2263 \\
+iteration4 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp32 & 8.5325 & 8.5535 & 117.1994 \\
+iteration5 & jetson-cpu & 15W & onnxruntime[CPU] & fp32 & 263.4449 & 269.0639 & 3.7959 \\
+iteration5 & jetson-cpu & 25W & onnxruntime[CPU] & fp32 & 290.5154 & 297.3282 & 3.4422 \\
+iteration5 & jetson-cpu & MAXN\_SUPER & onnxruntime[CPU] & fp32 & 230.8251 & 240.0287 & 4.3323 \\
+iteration5 & jetson-cuda & 15W & tensorrt[trtexec] & fp16 & 6.5068 & 6.5254 & 153.6844 \\
+iteration5 & jetson-cuda & 15W & tensorrt[trtexec] & fp32 & 17.4768 & 17.4929 & 57.2187 \\
+iteration5 & jetson-cuda & 25W & tensorrt[trtexec] & fp16 & 4.3536 & 4.3655 & 229.6929 \\
+iteration5 & jetson-cuda & 25W & tensorrt[trtexec] & fp32 & 11.7017 & 11.7144 & 85.4577 \\
+iteration5 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp16 & 3.9573 & 3.9807 & 252.6988 \\
+iteration5 & jetson-cuda & MAXN\_SUPER & tensorrt[trtexec] & fp32 & 10.6643 & 11.0781 & 93.7708 \\
+\bottomrule
+\end{tabular}
+\end{table}

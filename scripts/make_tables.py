@@ -213,9 +213,39 @@ def pareto_outputs(common: pd.DataFrame, benchmarks: pd.DataFrame) -> None:
     # macro-F1 -- the best each method can do, which is the fair comparison.
     best = binary.loc[binary.groupby("method")["f1_macro"].idxmax()]
 
-    batch1 = benchmarks[(benchmarks["batch_size"] == 1) & (benchmarks["backend"] == "pytorch")]
+    # Every backend counts, not just PyTorch. Restricting to PyTorch would drop
+    # the entire Jetson dataset, which is measured through ONNX Runtime and
+    # TensorRT -- the runtimes you would actually deploy with on that hardware.
+    # For each (model, device) the fastest measured configuration is used, i.e.
+    # the best that device can do for that model.
+    batch1 = benchmarks[benchmarks["batch_size"] == 1]
 
-    fig, axis = plt.subplots(figsize=(9, 6))
+    # Group devices into four deployment classes. Annotating all 40
+    # (method x device x power-mode) points made the figure unreadable; the
+    # per-mode detail belongs in the power-scaling figure and the tables, while
+    # the Pareto plot answers "which paradigm, on which class of hardware".
+    def device_class(name: str) -> str:
+        if name.startswith("jetson-cuda"):
+            return "Jetson GPU (TensorRT)"
+        if name.startswith("jetson-cpu"):
+            return "Jetson ARM CPU"
+        if name == "cuda":
+            return "Desktop GPU (RTX 3060)"
+        if name == "cpu":
+            return "Desktop x86 CPU"
+        return name
+
+    CLASS_STYLE = {
+        "Desktop GPU (RTX 3060)": {"alpha": 0.95, "size": 150, "edge": "black"},
+        "Jetson GPU (TensorRT)": {"alpha": 0.95, "size": 150, "edge": "#d62728"},
+        "Desktop x86 CPU": {"alpha": 0.45, "size": 80, "edge": "black"},
+        "Jetson ARM CPU": {"alpha": 0.45, "size": 80, "edge": "#d62728"},
+    }
+
+    batch1 = batch1.copy()
+    batch1["device_class"] = batch1["bench_device"].map(device_class)
+
+    fig, axis = plt.subplots(figsize=(10, 6.5))
     plotted = []
 
     for _, row in best.iterrows():
@@ -223,42 +253,38 @@ def pareto_outputs(common: pd.DataFrame, benchmarks: pd.DataFrame) -> None:
         if method not in METHOD_STYLE:
             continue
         style = METHOD_STYLE[method]
-        for device in sorted(batch1["bench_device"].unique()):
+        for klass, class_style in CLASS_STYLE.items():
             subset = batch1[
-                (batch1["model_key"] == method)
-                & (batch1["bench_device"] == device)
-                & (batch1["precision"] == "fp32")
+                (batch1["model_key"] == method) & (batch1["device_class"] == klass)
             ]
             if subset.empty:
                 continue
-            latency = float(subset["latency_ms_median"].min())
+            # Best the class can do for this model, across power modes,
+            # precisions and runtimes.
+            fastest = subset.loc[subset["latency_ms_median"].idxmin()]
+            latency = float(fastest["latency_ms_median"])
             axis.scatter(
                 latency,
                 row["f1_macro"],
-                s=140 if "cuda" in device else 90,
+                s=class_style["size"],
                 color=style["color"],
                 marker=style["marker"],
-                edgecolors="black",
-                linewidths=0.6,
-                alpha=0.95 if "cuda" in device else 0.55,
-            )
-            axis.annotate(
-                device.replace("jetson-", "J-"),
-                (latency, row["f1_macro"]),
-                fontsize=6,
-                xytext=(4, 4),
-                textcoords="offset points",
+                edgecolors=class_style["edge"],
+                linewidths=1.2,
+                alpha=class_style["alpha"],
             )
             plotted.append(
                 {
                     "method": method,
                     "label": style["label"],
-                    "device": device,
+                    "device_class": klass,
+                    "device": fastest["bench_device"],
+                    "backend": fastest["backend"],
+                    "precision": fastest["precision"],
                     "latency_ms": latency,
                     "fps": 1000.0 / latency if latency else 0.0,
                     "f1_macro": row["f1_macro"],
                     "accuracy": row["accuracy"],
-                    "threshold": row["threshold"],
                 }
             )
 
@@ -273,7 +299,7 @@ def pareto_outputs(common: pd.DataFrame, benchmarks: pd.DataFrame) -> None:
         color="grey", rotation=90, va="bottom",
     )
 
-    handles = [
+    method_handles = [
         plt.Line2D(
             [], [], color=style["color"], marker=style["marker"], linestyle="",
             markersize=8, label=style["label"],
@@ -281,7 +307,21 @@ def pareto_outputs(common: pd.DataFrame, benchmarks: pd.DataFrame) -> None:
         for key, style in METHOD_STYLE.items()
         if key in set(best["method"])
     ]
-    axis.legend(handles=handles, fontsize=8, loc="lower left")
+    class_handles = [
+        plt.Line2D(
+            [], [], color="grey", marker="o", linestyle="",
+            markersize=10 if cs["size"] > 100 else 7,
+            markeredgecolor=cs["edge"], markeredgewidth=1.4,
+            alpha=cs["alpha"], label=name,
+        )
+        for name, cs in CLASS_STYLE.items()
+    ]
+    first = axis.legend(handles=method_handles, fontsize=8, loc="lower left", title="Method")
+    axis.add_artist(first)
+    axis.legend(
+        handles=class_handles, fontsize=7, loc="lower center",
+        title="Hardware class (red edge = Jetson)",
+    )
     axis.set_xscale("log")
     axis.set_xlabel("Median inference latency (ms, batch=1, log scale)")
     axis.set_ylabel("Macro-F1 on the common binary 'fire present' task")
@@ -292,6 +332,64 @@ def pareto_outputs(common: pd.DataFrame, benchmarks: pd.DataFrame) -> None:
     if plotted:
         frame = pd.DataFrame(plotted).sort_values(["method", "device"])
         save_table(frame, "pareto_points", "Accuracy vs cost, per method and device")
+
+
+def jetson_outputs(benchmarks: pd.DataFrame) -> None:
+    """Power-mode scaling on the Jetson, GPU and ARM CPU tiers separately."""
+    jetson = benchmarks[
+        benchmarks["bench_device"].astype(str).str.startswith("jetson")
+        & (benchmarks["batch_size"] == 1)
+    ].copy()
+    if jetson.empty:
+        logger.info("No Jetson rows — skipping the power-mode outputs.")
+        return
+
+    jetson["mode"] = jetson["bench_device"].str.split("@").str[-1]
+    jetson["tier"] = jetson["bench_device"].str.split("@").str[0]
+
+    table = jetson[
+        ["model_key", "tier", "mode", "backend", "precision",
+         "latency_ms_median", "latency_ms_p95", "fps"]
+    ].sort_values(["model_key", "tier", "mode", "precision"])
+    save_table(table, "jetson_power_modes", "Jetson Orin Nano: latency by power mode")
+
+    # Ordered from lowest to highest power budget.
+    order = [m for m in ["15W", "25W", "MAXN_SUPER"] if m in set(jetson["mode"])]
+    if len(order) < 2:
+        return
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    for axis, (tier, label) in zip(
+        axes, [("jetson-cuda", "GPU (TensorRT FP16)"), ("jetson-cpu", "ARM CPU (ONNX Runtime)")]
+    ):
+        for method, style in METHOD_STYLE.items():
+            subset = jetson[(jetson["model_key"] == method) & (jetson["tier"] == tier)]
+            if tier == "jetson-cuda":
+                subset = subset[subset["precision"] == "fp16"]
+            if subset.empty:
+                continue
+            values = [
+                subset[subset["mode"] == mode]["latency_ms_median"].min() for mode in order
+            ]
+            axis.plot(
+                range(len(order)), values,
+                marker=style["marker"], color=style["color"], label=style["label"],
+            )
+        axis.set_xticks(range(len(order)))
+        axis.set_xticklabels(order)
+        axis.set_xlabel("Power mode")
+        axis.set_ylabel("Median latency (ms, batch=1)")
+        axis.set_title(label)
+        axis.grid(alpha=0.3)
+        axis.legend(fontsize=7)
+
+    fig.suptitle(
+        "Jetson Orin Nano power-mode scaling — note the CPU is SLOWER at 25W than 15W\n"
+        "(25W caps CPU at 1344 MHz vs 1497 MHz, reallocating budget to the GPU)",
+        fontsize=10,
+    )
+    fig.tight_layout()
+    save_figure(fig, "jetson_power_modes")
 
 
 def common_eval_outputs(common: pd.DataFrame) -> None:
@@ -508,6 +606,7 @@ def main() -> None:
 
     if benchmarks is not None:
         benchmark_outputs(benchmarks)
+        jetson_outputs(benchmarks)
     if common is not None:
         common_eval_outputs(common)
     if common is not None and benchmarks is not None:

@@ -1,6 +1,6 @@
 # Thesis Work — Status and Findings
 
-**Updated:** 2026-08-02
+**Updated:** 2026-08-18
 **Companion documents:** [thesis_plan.md](thesis_plan.md) (the plan), [thesis_readiness_report.md](thesis_readiness_report.md) (the original audit)
 
 This is the running record of what has been built, what has been measured, and
@@ -27,15 +27,20 @@ images, best operating point per method — `results/tables/common_eval_binary.m
 | 4 | FireCNN (it. 1) | binary classification | 0.9169 | 0.9380 | 0.916 | 0.838 |
 | 5 | U-Net (it. 5) | semantic segmentation | 0.6999 | 0.7559 | 0.524 | 0.625 |
 
-**Paired with measured cost** (`results/tables/pareto_points.md`, batch 1):
+**Paired with measured cost** (`results/tables/pareto_points.md`, batch 1,
+fastest configuration per hardware class):
 
-| Method | Macro-F1 | GPU latency | GPU FPS | CPU latency | CPU FPS |
+| Method | Macro-F1 | Desktop GPU<br>(RTX 3060, PyTorch) | Desktop CPU<br>(x86) | **Jetson GPU**<br>(TensorRT FP16) | **Jetson CPU**<br>(ARM, ONNX-RT) |
 |---|---|---|---|---|---|
-| FireCNN | 0.9169 | **0.72 ms** | 1394 | 6.26 ms | 160 |
-| MobileNetV3-S | 0.9411 | 5.69 ms | 176 | 4.90 ms | 204 |
-| MobileNetV3-S robust | 0.9510 | 5.81 ms | 172 | **4.85 ms** | 206 |
-| YOLO26n | **0.9689** | 16.62 ms | 60 | 45.19 ms | 22 |
-| U-Net | 0.6999 | 4.88 ms | 205 | 107.78 ms | 9 |
+| FireCNN | 0.9169 | 0.72 ms | 6.26 ms | **0.37 ms** | 12.01 ms |
+| MobileNetV3-S | 0.9411 | 5.69 ms | 4.90 ms | **0.90 ms** | 4.54 ms |
+| MobileNetV3-S robust | 0.9510 | 5.81 ms | 4.85 ms | **0.92 ms** | 4.57 ms |
+| YOLO26n | **0.9689** | 16.62 ms | 45.19 ms | **5.55 ms** | 77.76 ms |
+| U-Net | 0.6999 | 4.88 ms | 107.78 ms | **3.96 ms** | 230.83 ms |
+
+Jetson figures are at MAXN_SUPER; the 15W and 25W modes are in §2.11. Note the
+Jetson-vs-desktop columns compare *different runtimes* (TensorRT vs eager
+PyTorch), not hardware alone — see the caveat in §2.11.
 
 **The Pareto front is `FireCNN → MobileNetV3-robust → YOLO26n`.** Iteration 2 is
 dominated by iteration 3 (same architecture, same cost, lower accuracy).
@@ -272,6 +277,97 @@ measurement protocol is being taken seriously.
 
 ---
 
+## 2.11 Real edge hardware: Jetson Orin Nano Super
+
+The edge chapter is no longer a projection. Measured on borrowed hardware:
+
+| | |
+|---|---|
+| Board | NVIDIA Jetson Orin Nano **Super** Developer Kit |
+| Software | JetPack 7.0 / L4T R39.2, Ubuntu 24.04, Python 3.12.3 |
+| Compute | 6× Arm Cortex-A78AE, Ampere iGPU, 7 GB shared RAM |
+| GPU tier | TensorRT 10.16.2 via `trtexec` |
+| ARM CPU tier | ONNX Runtime 1.29.0 |
+
+45 measurements: 5 models × 3 backends × 3 power modes
+(`results/tables/jetson_power_modes.md`, `results/figures/jetson_power_modes.png`).
+
+### Latency at 25W (the default mode)
+
+| Model | ARM CPU | TRT FP32 | **TRT FP16** | CPU→FP16 |
+|---|---|---|---|---|
+| FireCNN | 15.13 ms | 0.92 ms | **0.40 ms** | 38× |
+| MobileNetV3-S | 5.62 ms | 1.32 ms | **0.98 ms** | 5.7× |
+| MobileNetV3-S robust | 5.62 ms | 1.37 ms | **0.98 ms** | 5.7× |
+| YOLO26n | 95.57 ms | 9.25 ms | **6.02 ms** | 16× |
+| U-Net | 290.52 ms | 11.70 ms | **4.35 ms** | **67×** |
+
+**Every paradigm is real-time capable on this board.** The slowest configuration
+across the entire matrix is YOLO26n at 15W (9.04 ms, 111 FPS). The original
+`README.md` guessed the U-Net was "Heavy: requires Jetson Orin Nano / Xavier NX"
+and the detector needed "hardware NPU accelerators" — both understated the
+hardware substantially.
+
+### FP16 is a win on Jetson and a loss on the desktop
+
+| Model | RTX 3060 FP32→FP16 | Jetson FP32→FP16 |
+|---|---|---|
+| FireCNN | **+15% slower** | −57% faster |
+| MobileNetV3-S | **+14% slower** | −26% faster |
+| YOLO26n | **+17% slower** | −35% faster |
+| U-Net | −20% faster | −63% faster |
+
+On the RTX 3060 only the compute-bound U-Net benefited (§2.4); on Orin Nano every
+model does. "Use FP16 on the edge" turns out to be true *on the edge* and false on
+the desktop GPU tested here — the recommendation is hardware-specific, and this
+project can now demonstrate that rather than assert it.
+
+### Power modes are not a linear ladder
+
+The GPU improves monotonically with power budget, but the **CPU is slower at 25W
+than at 15W**:
+
+| Mode | CPU max clock | MobileNetV3 CPU | YOLO26n GPU FP16 |
+|---|---|---|---|
+| 15W | 1497.6 MHz | 5.14 ms | 9.04 ms |
+| 25W | **1344.0 MHz** | **5.62 ms** | 6.02 ms |
+| MAXN_SUPER | 1728.0 MHz | 4.54 ms | 5.55 ms |
+
+25W *reduces* the CPU clock relative to 15W in order to give the GPU more of the
+budget. CPU latency tracks the clock almost exactly (15W→25W: clock −11.4%,
+latency +9.3%). A deployment doing CPU-side pre/post-processing could therefore
+be **slower** at a higher power setting — a genuinely counter-intuitive result
+that only multi-mode measurement exposes.
+
+**Diminishing returns above 25W:** 15W→25W buys 33% on YOLO; 25W→MAXN_SUPER buys
+a further 8% for a much larger power budget. 25W is the efficiency sweet spot.
+
+### Caveat: the Jetson-vs-desktop comparison confounds runtime with hardware
+
+In `results/figures/pareto_accuracy_vs_latency.png` several Jetson GPU points sit
+*left of* the RTX 3060 points — YOLO26n is 6.02 ms on Orin Nano versus 16.62 ms
+on the desktop. **This does not mean the edge GPU is faster than the desktop
+GPU.** It compares *TensorRT FP16 with a compiled, fused engine* against *eager
+PyTorch FP32*, which are different software stacks. The honest statement is:
+
+> An Orin Nano running TensorRT outperforms an RTX 3060 running eager PyTorch on
+> this workload.
+
+That is a legitimate and useful deployment comparison — it is what you would
+actually ship in each case — but it is not a hardware-only claim. Isolating the
+hardware would require running TensorRT on both, which has not been done.
+
+### The FLOPs/latency inversion reproduces on ARM
+
+FireCNN is **slower** than MobileNetV3-S on ARM CPU (15.13 vs 5.62 ms) despite
+being 2.8× smaller in parameters, because it does 12× more FLOPs — yet it is the
+**fastest** model on the GPU (0.40 ms). The same inversion appears on x86 (§2.3).
+Confirming it on a second, architecturally different platform turns a
+single-platform curiosity into a robust finding: neither parameter count nor
+FLOPs predicts latency, and the ranking flips between CPU and GPU on both.
+
+---
+
 ## 3. Data integrity: the original blocker is closed
 
 The audit's top blocker was that nobody knew how `data/val/` was created, with a
@@ -413,11 +509,11 @@ comparison at 4 architectures × 3 seeds.
 | 2 | Backbone comparison, 4 trunks × 3 seeds | **done** |
 | 3 | Multi-seed reruns, all methods | **done** (§2.6, §2.7) |
 | 4 | Failure-case montages | **done** (§2.9) |
-| 5 | **Jetson Orin Nano measurement** | **blocked — needs SSH access** (~1 day) |
-| 6 | TensorRT export + INT8 calibration | blocked on the Jetson |
+| 5 | Jetson Orin Nano measurement | **done** (§2.11) — 45 rows across 3 power modes |
+| 6 | TensorRT FP16/FP32 on device | **done** (§2.11). INT8 calibration still open |
 | 7 | Static PTQ / QAT for a real INT8 result | not started (~0.5 day) |
 
-Items 5 and 6 are the only remaining measurement work, and both need the device.
+All measurement work is complete. INT8 calibration (item 7) remains optional.
 Item 7 is optional but would convert §2.5 from "the quantization we tried does
 nothing" into "here is what correctly-applied quantization actually buys".
 

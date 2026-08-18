@@ -395,6 +395,155 @@ def benchmark_torch(model_key: str, device: str, precision: str, batch_size: int
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# TensorRT via trtexec
+# ---------------------------------------------------------------------------
+
+
+def find_trtexec() -> str | None:
+    """Locate trtexec, which ships with the `tensorrt` package."""
+    from shutil import which
+
+    found = which("trtexec")
+    if found:
+        return found
+    for candidate in (
+        "/usr/src/tensorrt/bin/trtexec",
+        "/usr/local/tensorrt/bin/trtexec",
+        "/opt/nvidia/tensorrt/bin/trtexec",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    return None
+
+
+def benchmark_trtexec(model_key: str, precision: str, batch_size: int,
+                      iters: int, env: dict, tag: str, trtexec: str) -> dict | None:
+    """
+    Benchmark an ONNX graph through TensorRT using the trtexec CLI.
+
+    On a freshly flashed JetPack, prebuilt `onnxruntime-gpu` and PyTorch wheels
+    matching the CUDA/Python combination often do not exist yet, which would
+    leave the GPU tier unmeasured. `trtexec` ships with the `tensorrt` package
+    itself, so it is the most dependable route to a GPU number.
+
+    trtexec reports its own GPU-compute latency distribution (median, mean,
+    percentile), measured around the enqueue/execute cycle. Those figures are
+    parsed here rather than timed externally, so the numbers are TensorRT's own
+    and not confounded by Python overhead.
+    """
+    path = onnx_path(model_key)
+    if not path.exists():
+        return None
+
+    spec = MODEL_SPECS[model_key]
+    channels, height, width = spec["input"]
+
+    cache_dir = RESULTS_DIR / "trt_engines"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    engine = cache_dir / f"{model_key}_{precision}_b{batch_size}.engine"
+
+    common = [
+        trtexec,
+        f"--iterations={iters}",
+        "--avgRuns=1",
+        "--warmUp=2000",          # ms of warmup before timing
+        "--duration=0",           # honour --iterations rather than a time budget
+        "--noDataTransfers",      # time compute only, not host<->device copies
+    ]
+
+    if engine.exists() and engine.stat().st_size > 0:
+        # Reuse a previously built engine. This matters for the power-mode
+        # sweep: TensorRT picks kernel tactics by timing them at *build* time,
+        # so rebuilding under each power budget would confound the measurement
+        # with build-time tactic differences. Building once and replaying the
+        # same engine isolates the effect of the power cap on inference, and
+        # also matches real deployment, where an engine is built once and
+        # shipped.
+        command = common + [f"--loadEngine={engine}"]
+        print(f"  reusing cached TensorRT {precision} engine...")
+    else:
+        command = common + [f"--onnx={path}", f"--saveEngine={engine}"]
+        if precision == "fp16":
+            command.append("--fp16")
+        elif precision == "int8":
+            command.append("--int8")
+        print(f"  building/running TensorRT {precision} engine (can take minutes)...")
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True, timeout=3600)
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"  ! trtexec failed for {model_key}/{precision}: {exc}")
+        return None
+
+    output = proc.stdout + proc.stderr
+    if proc.returncode != 0:
+        tail = [ln for ln in output.splitlines() if ln.strip()][-3:]
+        print(f"  ! trtexec exit {proc.returncode} for {model_key}/{precision}: {' | '.join(tail)}")
+        return None
+
+    # Parse the "GPU Compute Time" block, e.g.:
+    #   GPU Compute Time: min = 1.2 ms, max = 2.1 ms, mean = 1.4 ms,
+    #                     median = 1.3 ms, percentile(99%) = 2.0 ms
+    metrics: dict[str, float] = {}
+    for line in output.splitlines():
+        if "GPU Compute Time" not in line:
+            continue
+        for part in line.split(":", 1)[1].split(","):
+            if "=" not in part:
+                continue
+            name, _, value = part.partition("=")
+            name = name.strip().lower()
+            try:
+                number = float(value.strip().split()[0])
+            except (ValueError, IndexError):
+                continue
+            if name.startswith("min"):
+                metrics["min"] = number
+            elif name.startswith("mean"):
+                metrics["mean"] = number
+            elif name.startswith("median"):
+                metrics["median"] = number
+            elif name.startswith("percentile"):
+                metrics["p95"] = number  # trtexec default percentile is 99%
+        break
+
+    if "median" not in metrics:
+        print(f"  ! could not parse trtexec output for {model_key}/{precision}")
+        return None
+
+    median = metrics["median"]
+    return {
+        "model_key": model_key,
+        "model_name": spec["name"],
+        "bench_device": "jetson-cuda",
+        "device_label": env.get("device_model", ""),
+        "backend": "tensorrt[trtexec]",
+        "precision": precision,
+        "batch_size": batch_size,
+        "input_h": height,
+        "input_w": width,
+        "params": 0,
+        "gflops": 0.0,
+        "size_mb": engine.stat().st_size / (1024 * 1024) if engine.exists() else 0.0,
+        "latency_ms_mean": metrics.get("mean", median),
+        "latency_ms_median": median,
+        "latency_ms_p95": metrics.get("p95", median),
+        "latency_ms_std": 0.0,
+        "latency_ms_min": metrics.get("min", median),
+        "fps": 1000.0 / median if median else 0.0,
+        "throughput_ips": (1000.0 / median if median else 0.0) * batch_size,
+        "peak_mem_mb": 0.0,
+        "warmup_iters": 0,
+        "timed_iters": iters,
+        "host": env.get("hostname", ""),
+        "torch_version": str(env.get("torch", "")),
+        "power_mode": tag or env.get("power_mode", ""),
+        # trtexec's percentile is 99% by default, not 95% -- recorded so the
+        # column is not silently compared against the desktop's p95.
+        "notes": "trtexec GPU-compute time; p95 column holds percentile(99%); --noDataTransfers",
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark fire-detection models on Jetson.")
     parser.add_argument("--models", nargs="+", default=sorted(MODEL_SPECS),
@@ -461,6 +610,13 @@ def main() -> None:
         except ImportError:
             print("\n! torch not installed — skipping PyTorch backends.\n")
 
+    trtexec = None if args.skip_tensorrt else find_trtexec()
+    trt_precisions = ["fp16", "fp32"] if trtexec else []
+    if trtexec:
+        print(f"\nUsing trtexec at {trtexec} for the TensorRT GPU tier.")
+    elif not args.skip_tensorrt:
+        print("\n! trtexec not found — GPU tier will rely on ONNX Runtime, if present.")
+
     rows: list[dict] = []
 
     for model_key in args.models:
@@ -478,6 +634,13 @@ def main() -> None:
                 if row:
                     rows.append(row)
                     print(f"  {'pytorch-' + device:<28} {precision:<5} "
+                          f"median {row['latency_ms_median']:8.2f} ms  {row['fps']:7.1f} FPS")
+            for precision in trt_precisions:
+                row = benchmark_trtexec(model_key, precision, batch_size,
+                                        iters, env, args.tag, trtexec)
+                if row:
+                    rows.append(row)
+                    print(f"  {'tensorrt[trtexec]':<28} {precision:<5} "
                           f"median {row['latency_ms_median']:8.2f} ms  {row['fps']:7.1f} FPS")
 
     if not rows:

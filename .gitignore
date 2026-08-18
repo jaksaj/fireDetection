@@ -51,3 +51,8 @@ results/failures/
 
 # Results backups written by scripts/merge_jetson_results.py
 results/*.csv.bak
+
+# Transient scp target for Jetson results; merged into results/benchmarks.csv
+# by scripts/merge_jetson_results.py. Device spec is kept as
+# results/jetson_environment.json.
+jetson_results/
