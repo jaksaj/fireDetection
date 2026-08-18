@@ -314,6 +314,47 @@ def score(
     return metrics
 
 
+def predict_onnx_classifier(
+    onnx_path: Path,
+    image_paths: list[Path],
+    image_size: int,
+    binary: bool,
+    batch_size: int = 32,
+) -> np.ndarray | None:
+    """
+    Run an ONNX classification graph and collapse to 4-class labels.
+
+    Used to score quantized models: an INT8 artifact is only interesting if its
+    accuracy cost is known, and the size/latency win alone says nothing about
+    whether it is still usable.
+    """
+    try:
+        import onnxruntime as ort
+    except ImportError:
+        logger.warning("onnxruntime not installed — cannot evaluate %s", onnx_path.name)
+        return None
+    if not onnx_path.exists():
+        return None
+
+    session = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
+    input_name = session.get_inputs()[0].name
+    transform = build_eval_transform(image_size)
+    predictions: list[int] = []
+
+    for batch_paths in _batched(image_paths, batch_size):
+        for path in batch_paths:
+            with Image.open(path) as image:
+                tensor = transform(image.convert("RGB")).unsqueeze(0).numpy()
+            logits = np.asarray(session.run(None, {input_name: tensor})[0])
+            if binary:
+                score = 1.0 / (1.0 + np.exp(-logits.reshape(-1)[0]))
+                predictions.append(presence_to_multiclass(bool(score > 0.5), False))
+            else:
+                predictions.append(int(logits.reshape(-1)[:4].argmax()))
+
+    return np.array(predictions, dtype=np.int64)
+
+
 def load_state(model: torch.nn.Module, path: Path, device: torch.device) -> bool:
     if not path.exists():
         logger.warning("Checkpoint missing: %s", path)
@@ -345,6 +386,21 @@ def parse_args() -> argparse.Namespace:
         "--mask-area", type=float, default=0.005, help="Segmentation area threshold."
     )
     parser.add_argument("--output", default="common_eval.csv", help="CSV filename under results/.")
+    parser.add_argument(
+        "--onnx-dir",
+        type=Path,
+        default=None,
+        help="Evaluate <method>_int8.onnx from this directory instead of the "
+             "PyTorch checkpoints. Used to measure the accuracy cost of quantization.",
+    )
+    parser.add_argument(
+        "--tag", default="", help="Label added to the notes column, e.g. 'int8'."
+    )
+    parser.add_argument(
+        "--onnx-suffix", default="_int8.onnx",
+        help="Filename suffix inside --onnx-dir. Use '.onnx' to score the FP32 "
+             "exports as a control on the ONNX evaluation path itself.",
+    )
     return parser.parse_args()
 
 
@@ -395,6 +451,35 @@ def main() -> None:
                 metrics["accuracy"],
                 metrics["f1_macro"],
             )
+
+    # Quantized-model path: score the ONNX artifacts instead of the checkpoints,
+    # so the accuracy cost of quantization can be set against its size win.
+    if args.onnx_dir is not None:
+        for method in args.methods:
+            if method in {"iteration4", "iteration5"}:
+                logger.info("Skipping %s — ONNX scoring covers the classifiers only.", method)
+                continue
+            onnx_path = args.onnx_dir / f"{method}{args.onnx_suffix}"
+            if not onnx_path.exists():
+                logger.warning("Missing %s", onnx_path)
+                continue
+            binary = method == "iteration1"
+            predicted = predict_onnx_classifier(onnx_path, image_paths, 224, binary=binary)
+            if predicted is None:
+                continue
+            emit(
+                method,
+                f"{method} ({args.tag or 'onnx'})",
+                "quantized classification",
+                predicted,
+                ["binary"] if binary else ["binary", "multiclass"],
+                notes=f"ONNX {args.tag or 'artifact'}: {onnx_path.name}",
+            )
+
+        if rows:
+            path = append_rows(args.output, rows, COMMON_FIELDS)
+            logger.info("Wrote %d rows to %s", len(rows), path)
+        return
 
     if "iteration1" in args.methods:
         from src.model import FireCNN

@@ -1,0 +1,6 @@
+method,model_name,paradigm,axis,threshold,n_images,accuracy,f1_macro,f1_fire,precision_fire,recall_fire,f1_Neither,f1_Only_Fire,f1_Only_Smoke,f1_Both,domain_shift,notes
+iteration1,iteration1 (int8),quantized classification,binary,nan,4306,0.9338132837900603,0.9103468937665373,0.8644793152639088,0.9200404858299596,0.8152466367713005,,,,,0,ONNX int8: iteration1_int8.onnx
+iteration2,iteration2 (int8),quantized classification,binary,nan,4306,0.7724105898745935,0.6113450679760228,0.36114732724902215,0.6610978520286396,0.2484304932735426,,,,,0,ONNX int8: iteration2_int8.onnx
+iteration2,iteration2 (int8),quantized classification,multiclass,nan,4306,0.45843009753831865,0.2017537217267005,,,,0.6536502546689303,0.15336463223787167,0.0,0.0,0,ONNX int8: iteration2_int8.onnx
+iteration3,iteration3 (int8),quantized classification,binary,nan,4306,0.7796098467254993,0.5959756489546854,0.323592302209551,0.7881944444444444,0.20358744394618833,,,,,0,ONNX int8: iteration3_int8.onnx
+iteration3,iteration3 (int8),quantized classification,multiclass,nan,4306,0.46957733395262424,0.2186547792624999,,,,0.6635038969840732,0.17928286852589642,0.022953328232593728,0.008879023307436182,0,ONNX int8: iteration3_int8.onnx

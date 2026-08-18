@@ -38,9 +38,11 @@ fastest configuration per hardware class):
 | YOLO26n | **0.9689** | 16.62 ms | 45.19 ms | **5.55 ms** | 77.76 ms |
 | U-Net | 0.6999 | 4.88 ms | 107.78 ms | **3.96 ms** | 230.83 ms |
 
-Jetson figures are at MAXN_SUPER; the 15W and 25W modes are in §2.11. Note the
-Jetson-vs-desktop columns compare *different runtimes* (TensorRT vs eager
-PyTorch), not hardware alone — see the caveat in §2.11.
+Jetson figures are at MAXN_SUPER; the 15W and 25W modes are in §2.11. The
+desktop GPU column above is **eager PyTorch**, which understates that hardware by
+4–7×: with TensorRT the RTX 3060 runs YOLO26n in 2.27 ms rather than 16.62 ms.
+For the matched TensorRT-on-both comparison — where the desktop is 1.4–3.3×
+faster than the Jetson — see §2.11.
 
 **The Pareto front is `FireCNN → MobileNetV3-robust → YOLO26n`.** Iteration 2 is
 dominated by iteration 3 (same architecture, same cost, lower accuracy).
@@ -146,8 +148,62 @@ converting:
 PyTorch dynamic quantization covers `Linear`/RNN layers — **not `Conv2d`**. The
 convolutional trunks holding almost all parameters stay in FP32. This
 definitively retires the **"~1.1 MiB (INT8)"** figure that was in `README.md`:
-no run ever produced it, and the code path referenced could not have. A real
-INT8 result requires static (calibrated) PTQ or QAT, which remains undone.
+no run ever produced it, and the code path referenced could not have.
+
+### 2.5b Static INT8 PTQ: real compression, and quantizability is architectural
+
+`scripts/quantize_int8.py` does the real thing — calibrated static PTQ (QDQ,
+per-channel) using 200 images sampled from the **train** split (never test;
+calibrating on test would leak the evaluation set). Unlike the dynamic path, this
+quantizes convolutions.
+
+**Size: a genuine 3–4× reduction on every model.**
+
+| Model | FP32 ONNX | INT8 ONNX | Shrink | CPU latency | Speedup |
+|---|---|---|---|---|---|
+| FireCNN | 1.49 MB | **0.39 MB** | 3.79× | 2.34 → 1.99 ms | 1.17× |
+| MobileNetV3-S | 4.12 MB | **1.37 MB** | 3.00× | 0.96 → 1.34 ms | **0.72× (slower)** |
+| MobileNetV3-S robust | 4.12 MB | **1.37 MB** | 3.00× | 1.05 → 1.19 ms | **0.88× (slower)** |
+| YOLO26n | 9.66 MB | **3.11 MB** | 3.11× | 22.77 → 16.46 ms | 1.40× |
+| U-Net | 29.94 MB | **7.57 MB** | 3.95× | 69.43 → 32.28 ms | **2.15×** |
+
+**Accuracy: the cost is entirely architecture-dependent** (binary macro-F1 on the
+common task):
+
+| Model | FP32 | INT8 (MinMax) | INT8 (Percentile) | Best drop |
+|---|---|---|---|---|
+| FireCNN | 0.9169 | **0.9103** | — | **−0.007** |
+| MobileNetV3-S | 0.9411 | 0.6113 | 0.7327 | **−0.208** |
+| MobileNetV3-S robust | 0.9510 | 0.5960 | 0.7614 | **−0.190** |
+
+This was verified against a control: the **FP32 ONNX** models reproduce their
+PyTorch scores exactly (0.9169 / 0.9411 / 0.9510), so the export and ONNX
+evaluation paths are correct and the collapse is a property of quantization, not
+a pipeline bug.
+
+Switching calibration from MinMax to Percentile recovers 12–17 points but still
+leaves MobileNetV3 ~19 points below FP32. So the calibration method matters a
+great deal — and is not sufficient.
+
+**The finding, and it inverts the conventional advice:**
+
+> INT8 quantizability is a property of the architecture, not of the toolchain.
+> The scratch-built FireCNN — dense 3×3 convolutions with ReLU — quantizes
+> essentially for free: 3.8× smaller, slightly faster, 0.7 points of F1 lost.
+> MobileNetV3-Small, the architecture explicitly designed for mobile
+> deployment, is the one that cannot be quantized: it loses ~19 points of F1
+> **and gets slower**. Depthwise separable convolutions have per-channel weight
+> ranges that differ by orders of magnitude, and hard-swish produces unbounded
+> activations; both are pathological for post-training quantization.
+
+The practical consequence is that INT8 cannot be bolted on afterwards. If a
+deployment needs it, that must constrain architecture selection up front — and
+the "mobile-optimised" option may be the wrong choice precisely because it is
+optimised for FLOPs rather than for quantization.
+
+INT8 accuracy for YOLO26n and the U-Net is **not** measured (the ONNX scoring
+path covers the classifiers only); their rows above are size and latency only.
+QAT, which would likely recover MobileNetV3, remains undone.
 
 ### 2.6 Multi-seed reruns: two published numbers do not survive
 
@@ -342,20 +398,43 @@ that only multi-mode measurement exposes.
 **Diminishing returns above 25W:** 15W→25W buys 33% on YOLO; 25W→MAXN_SUPER buys
 a further 8% for a much larger power budget. 25W is the efficiency sweet spot.
 
-### Caveat: the Jetson-vs-desktop comparison confounds runtime with hardware
+### RESOLVED: matched TensorRT on both platforms
 
-In `results/figures/pareto_accuracy_vs_latency.png` several Jetson GPU points sit
-*left of* the RTX 3060 points — YOLO26n is 6.02 ms on Orin Nano versus 16.62 ms
-on the desktop. **This does not mean the edge GPU is faster than the desktop
-GPU.** It compares *TensorRT FP16 with a compiled, fused engine* against *eager
-PyTorch FP32*, which are different software stacks. The honest statement is:
+An earlier version of this section carried a caveat — several Jetson GPU points
+sat *left of* the RTX 3060 points (YOLO26n 6.02 ms on Orin Nano vs 16.62 ms on
+the desktop), but that compared TensorRT FP16 against eager PyTorch FP32, i.e.
+different software stacks. **TensorRT has now been run on the desktop too**
+(`scripts/benchmark_tensorrt_desktop.py`, TensorRT 10.16.1 matching the Jetson's
+10.16.2), using the same protocol as `trtexec --noDataTransfers`: persistent
+device buffers, no host↔device copies inside the timed region.
 
-> An Orin Nano running TensorRT outperforms an RTX 3060 running eager PyTorch on
-> this workload.
+**Matched TensorRT FP16, batch 1:**
 
-That is a legitimate and useful deployment comparison — it is what you would
-actually ship in each case — but it is not a hardware-only claim. Isolating the
-hardware would require running TensorRT on both, which has not been done.
+| Model | RTX 3060 | Orin Nano (MAXN) | Desktop advantage |
+|---|---|---|---|
+| FireCNN | **0.129 ms** | 0.371 ms | 2.9× |
+| MobileNetV3-S | **0.657 ms** | 0.904 ms | 1.4× |
+| MobileNetV3-S robust | **0.657 ms** | 0.920 ms | 1.4× |
+| YOLO26n | **2.268 ms** | 5.549 ms | 2.4× |
+| U-Net | **1.211 ms** | 3.957 ms | 3.3× |
+
+**The desktop GPU is 1.4–3.3× faster once the runtime is held constant.** The
+earlier appearance that the edge device beat it was *entirely* a runtime
+artifact. This is why the matched measurement was worth doing: the unmatched
+comparison would have supported a conclusion that is simply false.
+
+**TensorRT alone is worth 4–7× on identical hardware.** On the same RTX 3060,
+YOLO26n goes from 16.62 ms (eager PyTorch FP32) to 2.27 ms (TensorRT FP16) —
+a **7.3×** speedup with no hardware change. The U-Net gains 4.0×. Any
+"deployability" claim that benchmarks eager PyTorch is therefore understating
+what the hardware can do by nearly an order of magnitude — including, until now,
+this project's own desktop numbers.
+
+*Measurement note:* the desktop harness initially warmed up by iteration count
+(50 iterations), which for a 0.13 ms model is ~7 ms of load — not enough to ramp
+GPU boost clocks, and it produced a 2.2× discrepancy between two runs of the same
+cached engine. Warmup is now time-based (2 s, matching `trtexec --warmUp=2000`),
+after which repeat runs agree to within 4.8% (most under 1%).
 
 ### The FLOPs/latency inversion reproduces on ARM
 
@@ -579,9 +658,9 @@ comparison at 4 architectures × 3 seeds.
 | 4 | Failure-case montages | **done** (§2.9) |
 | 5 | Jetson Orin Nano measurement | **done** (§2.11) — 45 rows across 3 power modes |
 | 6 | TensorRT FP16/FP32 on device | **done** (§2.11). INT8 calibration still open |
-| 7 | Static PTQ / QAT for a real INT8 result | not started (~0.5 day) |
+| 7 | Static INT8 PTQ | **done** (2.5b). QAT still open — would likely recover MobileNetV3 |
 
-All measurement work is complete. INT8 calibration (item 7) remains optional.
+All measurement work is complete.
 Item 7 is optional but would convert §2.5 from "the quantization we tried does
 nothing" into "here is what correctly-applied quantization actually buys".
 

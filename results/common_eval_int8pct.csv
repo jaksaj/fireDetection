@@ -1,0 +1,5 @@
+method,model_name,paradigm,axis,threshold,n_images,accuracy,f1_macro,f1_fire,precision_fire,recall_fire,f1_Neither,f1_Only_Fire,f1_Only_Smoke,f1_Both,domain_shift,notes
+iteration2,iteration2 (int8-percentile),quantized classification,binary,nan,4306,0.7717138875986995,0.7327038407296063,0.6305900037579857,0.5426908150064683,0.7524663677130045,,,,,0,ONNX int8-percentile: iteration2_int8pct.onnx
+iteration2,iteration2 (int8-percentile),quantized classification,multiclass,nan,4306,0.41151881096144916,0.23625990522176332,,,,0.6669527896995708,0.17406143344709898,0.09295120061967467,0.01107419712070875,0,ONNX int8-percentile: iteration2_int8pct.onnx
+iteration3,iteration3 (int8-percentile),quantized classification,binary,nan,4306,0.8323269856014863,0.7613751111790645,0.6312563840653729,0.7330960854092526,0.5542600896860986,,,,,0,ONNX int8-percentile: iteration3_int8pct.onnx
+iteration3,iteration3 (int8-percentile),quantized classification,multiclass,nan,4306,0.4900139340455179,0.3313279745539187,,,,0.6863207547169812,0.3204868154158215,0.1724137931034483,0.14609053497942387,0,ONNX int8-percentile: iteration3_int8pct.onnx
