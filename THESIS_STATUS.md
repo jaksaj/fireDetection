@@ -1,6 +1,6 @@
 # Thesis Work — Status and Findings
 
-**Updated:** 2026-08-18
+**Updated:** 2026-08-19
 **Companion documents:** [thesis_plan.md](thesis_plan.md) (the plan), [thesis_readiness_report.md](thesis_readiness_report.md) (the original audit)
 
 This is the running record of what has been built, what has been measured, and
@@ -168,22 +168,39 @@ quantizes convolutions.
 | U-Net | 29.94 MB | **7.57 MB** | 3.95× | 69.43 → 32.28 ms | **2.15×** |
 
 **Accuracy: the cost is entirely architecture-dependent** (binary macro-F1 on the
-common task):
+common task, all five methods):
 
-| Model | FP32 | INT8 (MinMax) | INT8 (Percentile) | Best drop |
+| Model | Architecture style | FP32 | INT8 (best) | Drop |
 |---|---|---|---|---|
-| FireCNN | 0.9169 | **0.9103** | — | **−0.007** |
-| MobileNetV3-S | 0.9411 | 0.6113 | 0.7327 | **−0.208** |
-| MobileNetV3-S robust | 0.9510 | 0.5960 | 0.7614 | **−0.190** |
+| FireCNN | dense 3×3 conv + ReLU | 0.9169 | **0.9103** | **−0.007** |
+| U-Net | dense 3×3 conv + ReLU | 0.6999 | **0.6677** | **−0.032** |
+| MobileNetV3-S robust | depthwise + hard-swish | 0.9510 | 0.7614 | **−0.190** |
+| MobileNetV3-S | depthwise + hard-swish | 0.9411 | 0.7327 | **−0.208** |
+| **YOLO26n** | modern detector, SiLU | **0.9689** | **0.4256** | **−0.543** |
 
-This was verified against a control: the **FP32 ONNX** models reproduce their
-PyTorch scores exactly (0.9169 / 0.9411 / 0.9510), so the export and ONNX
-evaluation paths are correct and the collapse is a property of quantization, not
-a pipeline bug.
+For the two MobileNetV3 rows, MinMax calibration gave 0.6113/0.5960 and switching
+to Percentile recovered 12–17 points to the figures above — so calibration method
+matters a great deal, and is still not sufficient.
 
-Switching calibration from MinMax to Percentile recovers 12–17 points but still
-leaves MobileNetV3 ~19 points below FP32. So the calibration method matters a
-great deal — and is not sufficient.
+Every result was verified against an FP32 control: the unquantized ONNX models
+reproduce their PyTorch scores **exactly** (0.9169 / 0.9411 / 0.9510 / 0.9689 /
+0.6999), so the export and ONNX evaluation paths are sound and the collapses are
+a property of quantization, not a pipeline bug.
+
+**The split is clean and it is about architecture, not task.** The two networks
+built from plain convolutions with ReLU — the scratch FireCNN and the U-Net —
+lose almost nothing. The two "efficient" modern designs lose catastrophically:
+depthwise separable convolutions have per-channel weight ranges differing by
+orders of magnitude, and smooth unbounded activations (hard-swish, SiLU) produce
+long-tailed distributions that an 8-bit scale cannot represent without
+destroying resolution where the mass actually is.
+
+**The consequence is severe for the deployment story: INT8 turns the most
+accurate method into the least accurate one.** YOLO26n leads the FP32 ranking at
+0.9689 and falls to 0.4256 quantized — below every other method, including the
+domain-shifted U-Net. A deployment that adopts INT8 for its 3× memory saving
+without re-validating accuracy would ship a detector that is worse than the
+tiny scratch CNN it replaced.
 
 **The finding, and it inverts the conventional advice:**
 
@@ -201,9 +218,27 @@ deployment needs it, that must constrain architecture selection up front — and
 the "mobile-optimised" option may be the wrong choice precisely because it is
 optimised for FLOPs rather than for quantization.
 
-INT8 accuracy for YOLO26n and the U-Net is **not** measured (the ONNX scoring
-path covers the classifiers only); their rows above are size and latency only.
-QAT, which would likely recover MobileNetV3, remains undone.
+**INT8's latency benefit is platform-dependent too** (`results/arm_int8.csv`,
+same ONNX artifacts, same ONNX Runtime, x86 Ryzen vs Arm Cortex-A78AE):
+
+| Model | ARM FP32 | ARM INT8 | **ARM speedup** | x86 speedup |
+|---|---|---|---|---|
+| FireCNN | 15.19 ms | 5.74 ms | **2.64×** | 1.17× |
+| MobileNetV3-S | 5.59 ms | 4.85 ms | **1.15×** | **0.72× (slower)** |
+| MobileNetV3-S robust | 5.62 ms | 4.84 ms | **1.16×** | 0.88× (slower) |
+| YOLO26n | 96.14 ms | 51.55 ms | **1.86×** | 1.38× |
+| U-Net | 291.30 ms | 90.26 ms | **3.23×** | 2.15× |
+
+**INT8 is faster on ARM for every model, including the two where it was *slower*
+on x86.** The Cortex-A78AE has dot-product instructions (SDOT/UDOT) that make
+8-bit integer convolution genuinely cheap; the x86 part lacks VNNI, so the
+quantize/dequantize overhead can exceed the arithmetic saving. Measuring INT8
+only on the development machine would therefore have produced exactly the wrong
+deployment recommendation — a concrete argument for why edge claims need edge
+measurements.
+
+QAT remains undone; it would likely recover MobileNetV3 and YOLO26n, and is the
+natural follow-up if a deployment genuinely needs INT8 for those architectures.
 
 ### 2.6 Multi-seed reruns: two published numbers do not survive
 

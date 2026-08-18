@@ -1,0 +1,11 @@
+model,precision,median_ms,size_mb
+iteration1,fp32,15.188,1.49
+iteration1,int8,5.744,0.39
+iteration2,fp32,5.593,4.12
+iteration2,int8,4.854,1.37
+iteration3,fp32,5.62,4.12
+iteration3,int8,4.845,1.37
+iteration5,fp32,291.297,29.94
+iteration5,int8,90.265,7.57
+iteration4,fp32,96.135,9.66
+iteration4,int8,51.553,2.95
