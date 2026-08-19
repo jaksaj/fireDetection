@@ -139,6 +139,19 @@ def record_run(
     Returns:
         Path to the JSON record that was written.
     """
+    # Smoke tests run real pipelines for one epoch to prove they execute. Their
+    # metrics are meaningless and must never reach results/metrics.csv: a
+    # 1-epoch iteration-1 run scored 0.869 and, mixed into the seeded rows,
+    # moved the reported mean from 92.80% +/- 0.20% to 91.8% +/- 2.5%. The
+    # smoke-test harness sets this variable so its runs are diverted.
+    if os.environ.get("FIREDETECT_SMOKE_RUN") == "1":
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        marker = RESULTS_DIR / "smoke_runs.log"
+        with marker.open("a", encoding="utf-8") as handle:
+            handle.write(f"{datetime.now(timezone.utc).isoformat()} {method} seed={seed}\n")
+        logger.info("Smoke run — metrics NOT recorded to results/metrics.csv.")
+        return marker
+
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -621,6 +621,13 @@ def seed_outputs(metrics: pd.DataFrame) -> None:
         "test_metrics.recall": "test_recall",
         "test_metrics.precision": "test_precision",
         "test_metrics.false_alarm_rate": "test_false_alarm_rate",
+        # Detection metrics use Ultralytics' own names; without these aliases
+        # iteration 4 was absent from the seed-variance table that
+        # THESIS_STATUS cites for its mAP mean +/- std.
+        "test/metrics/mAP50(B)": "test_mAP50",
+        "test/metrics/mAP50-95(B)": "test_mAP50_95",
+        "test/metrics/precision(B)": "test_precision",
+        "test/metrics/recall(B)": "test_recall",
     }
     seeded = seeded.copy()
     seeded["metric"] = seeded["metric"].replace(ALIASES)
@@ -636,6 +643,7 @@ def seed_outputs(metrics: pd.DataFrame) -> None:
                 "test_mIoU", "test_mIoU_hazard_only", "test_mDice",
                 "test_pr_auc", "test_roc_auc", "test_recall",
                 "test_precision", "test_false_alarm_rate",
+                "test_mAP50", "test_mAP50_95",
             ]
         )
     ]
@@ -643,8 +651,16 @@ def seed_outputs(metrics: pd.DataFrame) -> None:
         logger.warning("No headline metrics found among seeded runs.")
         return
 
+    # Iteration runs carry an empty backbone, which pandas reads as NaN and
+    # DROPS from a groupby by default -- that silently reduced this table to the
+    # backbone-comparison rows only, while THESIS_STATUS cited it for the
+    # iteration numbers. Fill first, and never rely on groupby over a column
+    # that can be empty.
+    headline = headline.copy()
+    headline["backbone"] = headline["backbone"].fillna("-").replace("", "-")
+
     summary = (
-        headline.groupby(["method", "backbone", "metric"])["value"]
+        headline.groupby(["method", "backbone", "metric"], dropna=False)["value"]
         .agg(["mean", "std", "min", "max", "count"])
         .reset_index()
         .sort_values(["method", "metric"])
@@ -695,7 +711,51 @@ def main() -> None:
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
 
     benchmarks = load("benchmarks.csv")
-    common = load("common_eval.csv")
+
+    # Prefer the seeded common evaluation when it exists. The original
+    # common_eval.csv was produced from the *single* original checkpoints, which
+    # for iteration 1 is a run that does not replicate (~5 sigma outlier); its
+    # common-task score was 1.3 points optimistic. Thesis tables must come from
+    # replicated checkpoints.
+    seeded = load("common_eval_seeded.csv")
+    if seeded is not None and not seeded.empty:
+        aggregated = (
+            seeded.groupby(["method", "axis"])
+            .agg(
+                model_name=("model_name", "first"),
+                paradigm=("paradigm", "first"),
+                threshold=("threshold", "first"),
+                n_images=("n_images", "first"),
+                domain_shift=("domain_shift", "first"),
+                accuracy=("accuracy", "mean"),
+                f1_macro=("f1_macro", "mean"),
+                f1_macro_std=("f1_macro", "std"),
+                n_seeds=("f1_macro", "size"),
+                f1_fire=("f1_fire", "mean"),
+                precision_fire=("precision_fire", "mean"),
+                recall_fire=("recall_fire", "mean"),
+            )
+            .reset_index()
+        )
+        aggregated["notes"] = aggregated["n_seeds"].map(
+            lambda n: f"mean over {int(n)} seeded checkpoints"
+        )
+        common = aggregated
+        logger.info("Using SEEDED common evaluation (%d method/axis rows).", len(common))
+        save_table(
+            seeded[["method", "seed", "axis", "accuracy", "f1_macro"]].sort_values(
+                ["axis", "method", "seed"]
+            ),
+            "common_eval_per_seed",
+            "Common-task scores per seeded checkpoint",
+        )
+    else:
+        common = load("common_eval.csv")
+        if common is not None:
+            logger.warning(
+                "Falling back to unseeded common_eval.csv — its iteration-1 row "
+                "comes from a non-replicating checkpoint."
+            )
     robustness = load("robustness.csv")
     metrics = load("metrics.csv")
     dataset = load("dataset_stats.csv")

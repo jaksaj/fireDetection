@@ -1,6 +1,6 @@
 # Thesis Work — Status and Findings
 
-**Updated:** 2026-08-19
+**Updated:** 2026-08-19 (rev 2)
 **Companion documents:** [thesis_plan.md](thesis_plan.md) (the plan), [thesis_readiness_report.md](thesis_readiness_report.md) (the original audit)
 
 This is the running record of what has been built, what has been measured, and
@@ -17,26 +17,45 @@ set, one metric**. Previously they reported 93.80% binary accuracy, 90.25%
 made the project's own comparison question unanswerable.
 
 **Common-task ranking** (image-level "fire present", 4,306 official D-Fire test
-images, best operating point per method — `results/tables/common_eval_binary.md`):
+images, **mean ± std over seeded checkpoints** — `results/tables/common_eval_binary.md`,
+per-seed values in `results/tables/common_eval_per_seed.md`):
 
-| Rank | Method | Paradigm | Macro-F1 | Accuracy | Precision | Recall |
-|---|---|---|---|---|---|---|
-| 1 | **YOLO26n** | object detection | **0.9689** | 0.9758 | 0.937 | 0.972 |
-| 2 | MobileNetV3-S robust (it. 3) | multiclass classification | 0.9510 | 0.9624 | 0.927 | 0.928 |
-| 3 | MobileNetV3-S (it. 2) | multiclass classification | 0.9411 | 0.9538 | 0.884 | 0.945 |
-| 4 | FireCNN (it. 1) | binary classification | 0.9169 | 0.9380 | 0.916 | 0.838 |
-| 5 | U-Net (it. 5) | semantic segmentation | 0.6999 | 0.7559 | 0.524 | 0.625 |
+| Rank | Method | Paradigm | Macro-F1 | Seeds |
+|---|---|---|---|---|
+| 1 | **YOLO26n** | object detection | **0.9692 ± 0.0018** | 3 |
+| 2 | MobileNetV3-S robust (it. 3) | multiclass classification | 0.9477 ± 0.0008 | 5 |
+| 3 | MobileNetV3-S (it. 2) | multiclass classification | 0.9445 ± 0.0075 | 5 |
+| 4 | FireCNN (it. 1) | binary classification | 0.9036 ± 0.0020 | 5 |
+| 5 | U-Net (it. 5) | semantic segmentation | 0.7117 ± 0.0108 | 5 |
+
+> **These replaced an earlier version computed from the original single
+> checkpoints.** That version inherited iteration 1's non-replicating run (§2.6)
+> and scored it 0.9169 — **1.3 points optimistic**. Every other method moved by
+> ≤0.0034 except the U-Net (+0.0119), and **the ranking is unchanged**, so the
+> Pareto conclusion survives. But the headline table now rests on replicated
+> checkpoints rather than on a single run that does not reproduce.
+
+**Iterations 2 and 3 are not separable on the common task.** The difference is
++0.0032 macro-F1 at **p = 0.394** — nowhere near significance, and weaker than the
+p ≈ 0.06 seen on the 4-class test (§2.7). What *is* strongly separable is
+stability: iteration 3's standard deviation is **9.9× smaller** (0.0008 vs
+0.0075). Do not describe iteration 2 as "dominated" by iteration 3 on accuracy;
+the defensible claim is equal mean accuracy at equal cost, with far greater
+run-to-run consistency and materially better corruption robustness (§2.8).
 
 **Paired with measured cost** (`results/tables/pareto_points.md`, batch 1,
 fastest configuration per hardware class):
 
-| Method | Macro-F1 | Desktop GPU<br>(RTX 3060, PyTorch) | Desktop CPU<br>(x86) | **Jetson GPU**<br>(TensorRT FP16) | **Jetson CPU**<br>(ARM, ONNX-RT) |
+| Method | Macro-F1 (seeded) | Desktop GPU<br>(RTX 3060, PyTorch) | Desktop CPU<br>(x86) | **Jetson GPU**<br>(TensorRT FP16) | **Jetson CPU**<br>(ARM, ONNX-RT) |
 |---|---|---|---|---|---|
-| FireCNN | 0.9169 | 0.72 ms | 6.26 ms | **0.37 ms** | 12.01 ms |
-| MobileNetV3-S | 0.9411 | 5.69 ms | 4.90 ms | **0.90 ms** | 4.54 ms |
-| MobileNetV3-S robust | 0.9510 | 5.81 ms | 4.85 ms | **0.92 ms** | 4.57 ms |
-| YOLO26n | **0.9689** | 16.62 ms | 45.19 ms | **5.55 ms** | 77.76 ms |
-| U-Net | 0.6999 | 4.88 ms | 107.78 ms | **3.96 ms** | 230.83 ms |
+| FireCNN | 0.9036 ± 0.0020 | 0.72 ms | 6.26 ms | **0.37 ms** | 12.01 ms |
+| MobileNetV3-S | 0.9445 ± 0.0075 | 5.69 ms | 4.90 ms | **0.90 ms** | 4.54 ms |
+| MobileNetV3-S robust | 0.9477 ± 0.0008 | 5.81 ms | 4.85 ms | **0.92 ms** | 4.57 ms |
+| YOLO26n | **0.9692 ± 0.0018** | 16.62 ms | 45.19 ms | **5.55 ms** | 77.76 ms |
+| U-Net | 0.7117 ± 0.0108 | 4.88 ms | 107.78 ms | **3.96 ms** | 230.83 ms |
+
+Accuracy is the seeded mean; latency comes from a single trained checkpoint per
+method, since latency depends on architecture and not on learned weights.
 
 Jetson figures are at MAXN_SUPER; the 15W and 25W modes are in §2.11. The
 desktop GPU column above is **eager PyTorch**, which understates that hardware by
@@ -44,8 +63,10 @@ desktop GPU column above is **eager PyTorch**, which understates that hardware b
 For the matched TensorRT-on-both comparison — where the desktop is 1.4–3.3×
 faster than the Jetson — see §2.11.
 
-**The Pareto front is `FireCNN → MobileNetV3-robust → YOLO26n`.** Iteration 2 is
-dominated by iteration 3 (same architecture, same cost, lower accuracy).
+**The Pareto front is `FireCNN → MobileNetV3-robust → YOLO26n`.** Iterations 2
+and 3 share an architecture and an inference cost and are statistically tied on
+accuracy; iteration 3 is preferred for its stability and robustness, not for a
+higher mean.
 Iteration 5 is dominated outright — lower accuracy *and* higher cost than
 FireCNN. Figure: `results/figures/pareto_accuracy_vs_latency.png`.
 
@@ -170,6 +191,15 @@ quantizes convolutions.
 **Accuracy: the cost is entirely architecture-dependent** (binary macro-F1 on the
 common task, all five methods):
 
+> **Note on the FP32 column below.** These are the scores of the **original**
+> checkpoints (0.9169 / 0.9411 / 0.9510 / 0.9689 / 0.6999), not the seeded means
+> in §1. That is deliberate and necessary: the INT8 models were quantized from
+> the ONNX exports of those specific checkpoints, so the FP32 baseline must be
+> the same checkpoint to make the drop meaningful. Comparing an INT8 model
+> against a seeded mean it was not derived from would confound quantization loss
+> with seed variation. The *drops* are therefore valid; the absolute FP32 values
+> here should not be quoted as the project's headline accuracy.
+
 | Model | Architecture style | FP32 | INT8 (best) | Drop |
 |---|---|---|---|---|
 | FireCNN | dense 3×3 conv + ReLU | 0.9169 | **0.9103** | **−0.007** |
@@ -243,7 +273,9 @@ natural follow-up if a deployment genuinely needs INT8 for those architectures.
 ### 2.6 Multi-seed reruns: two published numbers do not survive
 
 Every original figure was a single unrepeated run. With 5 seeds per method
-(`results/tables/seed_variance.md`):
+(`results/tables/seed_variance.md` — this table previously omitted every
+iteration row because pandas silently dropped the empty `backbone` key from a
+groupby; fixed):
 
 | Method | Metric | Originally published | Seeded mean ± std (n=5) |
 |---|---|---|---|

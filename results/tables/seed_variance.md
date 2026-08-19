@@ -1,16 +1,33 @@
 # Headline metrics across seeds (mean ± std)
 
-| method     | backbone           | metric        |   mean |    std |    min |    max |   count | mean_pm_std     |
-|:-----------|:-------------------|:--------------|-------:|-------:|-------:|-------:|--------:|:----------------|
-| comparison | efficientnet_b0    | test_accuracy | 0.9115 | 0.0050 | 0.9059 | 0.9155 |       3 | 0.9115 ± 0.0050 |
-| comparison | firecnn            | test_accuracy | 0.7181 | 0.0160 | 0.7018 | 0.7339 |       3 | 0.7181 ± 0.0160 |
-| comparison | mobilenet_v3_small | test_accuracy | 0.9056 | 0.0031 | 0.9022 | 0.9083 |       3 | 0.9056 ± 0.0031 |
-| comparison | resnet18           | test_accuracy | 0.9022 | 0.0043 | 0.8978 | 0.9064 |       3 | 0.9022 ± 0.0043 |
-| comparison | efficientnet_b0    | test_f1_macro | 0.8739 | 0.0026 | 0.8711 | 0.8763 |       3 | 0.8739 ± 0.0026 |
-| comparison | firecnn            | test_f1_macro | 0.6611 | 0.0137 | 0.6504 | 0.6765 |       3 | 0.6611 ± 0.0137 |
-| comparison | mobilenet_v3_small | test_f1_macro | 0.8683 | 0.0012 | 0.8670 | 0.8694 |       3 | 0.8683 ± 0.0012 |
-| comparison | resnet18           | test_f1_macro | 0.8563 | 0.0055 | 0.8520 | 0.8626 |       3 | 0.8563 ± 0.0055 |
-| comparison | efficientnet_b0    | test_loss     | 0.3095 | 0.0054 | 0.3033 | 0.3134 |       3 | 0.3095 ± 0.0054 |
-| comparison | firecnn            | test_loss     | 0.6804 | 0.0361 | 0.6443 | 0.7165 |       3 | 0.6804 ± 0.0361 |
-| comparison | mobilenet_v3_small | test_loss     | 0.3134 | 0.0040 | 0.3108 | 0.3180 |       3 | 0.3134 ± 0.0040 |
-| comparison | resnet18           | test_loss     | 0.3126 | 0.0117 | 0.2991 | 0.3195 |       3 | 0.3126 ± 0.0117 |
+| method     | backbone           | metric                |   mean |    std |    min |    max |   count | mean_pm_std     |
+|:-----------|:-------------------|:----------------------|-------:|-------:|-------:|-------:|--------:|:----------------|
+| comparison | efficientnet_b0    | test_accuracy         | 0.9115 | 0.0050 | 0.9059 | 0.9155 |       3 | 0.9115 ± 0.0050 |
+| comparison | firecnn            | test_accuracy         | 0.7181 | 0.0160 | 0.7018 | 0.7339 |       3 | 0.7181 ± 0.0160 |
+| comparison | mobilenet_v3_small | test_accuracy         | 0.9056 | 0.0031 | 0.9022 | 0.9083 |       3 | 0.9056 ± 0.0031 |
+| comparison | resnet18           | test_accuracy         | 0.9022 | 0.0043 | 0.8978 | 0.9064 |       3 | 0.9022 ± 0.0043 |
+| comparison | efficientnet_b0    | test_f1_macro         | 0.8739 | 0.0026 | 0.8711 | 0.8763 |       3 | 0.8739 ± 0.0026 |
+| comparison | firecnn            | test_f1_macro         | 0.6611 | 0.0137 | 0.6504 | 0.6765 |       3 | 0.6611 ± 0.0137 |
+| comparison | mobilenet_v3_small | test_f1_macro         | 0.8683 | 0.0012 | 0.8670 | 0.8694 |       3 | 0.8683 ± 0.0012 |
+| comparison | resnet18           | test_f1_macro         | 0.8563 | 0.0055 | 0.8520 | 0.8626 |       3 | 0.8563 ± 0.0055 |
+| comparison | efficientnet_b0    | test_loss             | 0.3095 | 0.0054 | 0.3033 | 0.3134 |       3 | 0.3095 ± 0.0054 |
+| comparison | firecnn            | test_loss             | 0.6804 | 0.0361 | 0.6443 | 0.7165 |       3 | 0.6804 ± 0.0361 |
+| comparison | mobilenet_v3_small | test_loss             | 0.3134 | 0.0040 | 0.3108 | 0.3180 |       3 | 0.3134 ± 0.0040 |
+| comparison | resnet18           | test_loss             | 0.3126 | 0.0117 | 0.2991 | 0.3195 |       3 | 0.3126 ± 0.0117 |
+| iteration1 | -                  | test_accuracy         | 0.9280 | 0.0020 | 0.9250 | 0.9299 |       5 | 0.9280 ± 0.0020 |
+| iteration1 | -                  | test_loss             | 0.1971 | 0.0082 | 0.1869 | 0.2073 |       5 | 0.1971 ± 0.0082 |
+| iteration2 | -                  | test_accuracy         | 0.8886 | 0.0090 | 0.8785 | 0.9011 |       5 | 0.8886 ± 0.0090 |
+| iteration2 | -                  | test_f1_macro         | 0.8445 | 0.0140 | 0.8201 | 0.8547 |       5 | 0.8445 ± 0.0140 |
+| iteration2 | -                  | test_loss             | 0.3412 | 0.0160 | 0.3189 | 0.3605 |       5 | 0.3412 ± 0.0160 |
+| iteration3 | -                  | test_accuracy         | 0.8989 | 0.0030 | 0.8946 | 0.9027 |       5 | 0.8989 ± 0.0030 |
+| iteration3 | -                  | test_f1_macro         | 0.8606 | 0.0046 | 0.8573 | 0.8685 |       5 | 0.8606 ± 0.0046 |
+| iteration3 | -                  | test_loss             | 0.3227 | 0.0051 | 0.3166 | 0.3300 |       5 | 0.3227 ± 0.0051 |
+| iteration4 | -                  | test_mAP50            | 0.7488 | 0.0023 | 0.7471 | 0.7515 |       3 | 0.7488 ± 0.0023 |
+| iteration4 | -                  | test_mAP50_95         | 0.4299 | 0.0011 | 0.4288 | 0.4309 |       3 | 0.4299 ± 0.0011 |
+| iteration4 | -                  | test_precision        | 0.7481 | 0.0034 | 0.7446 | 0.7514 |       3 | 0.7481 ± 0.0034 |
+| iteration4 | -                  | test_recall           | 0.6913 | 0.0039 | 0.6878 | 0.6955 |       3 | 0.6913 ± 0.0039 |
+| iteration5 | -                  | test_accuracy         | 0.9653 | 0.0038 | 0.9595 | 0.9691 |       5 | 0.9653 ± 0.0038 |
+| iteration5 | -                  | test_loss             | 0.1769 | 0.0093 | 0.1642 | 0.1889 |       5 | 0.1769 ± 0.0093 |
+| iteration5 | -                  | test_mDice            | 0.9196 | 0.0075 | 0.9082 | 0.9264 |       5 | 0.9196 ± 0.0075 |
+| iteration5 | -                  | test_mIoU             | 0.8547 | 0.0119 | 0.8367 | 0.8656 |       5 | 0.8547 ± 0.0119 |
+| iteration5 | -                  | test_mIoU_hazard_only | 0.8005 | 0.0157 | 0.7769 | 0.8152 |       5 | 0.8005 ± 0.0157 |

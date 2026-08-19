@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -94,6 +95,8 @@ def run_pipeline(method: str, config_path: Path, timeout: int) -> tuple[bool, st
         command.append("--skip-export")
 
     start = time.perf_counter()
+    # Divert record_run so a 1-epoch smoke run cannot pollute results/metrics.csv.
+    env = {**os.environ, "FIREDETECT_SMOKE_RUN": "1"}
     try:
         completed = subprocess.run(
             command,
@@ -101,6 +104,7 @@ def run_pipeline(method: str, config_path: Path, timeout: int) -> tuple[bool, st
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         return False, f"timed out after {timeout}s", time.perf_counter() - start

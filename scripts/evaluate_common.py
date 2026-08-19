@@ -111,6 +111,7 @@ COMMON_FIELDS = [
     "f1_Only_Smoke",
     "f1_Both",
     "domain_shift",
+    "seed",
     "notes",
 ]
 
@@ -355,6 +356,22 @@ def predict_onnx_classifier(
     return np.array(predictions, dtype=np.int64)
 
 
+def checkpoint_for(method: str, seed: int | None) -> Path:
+    """
+    Resolve the checkpoint for a method, optionally for a specific seed.
+
+    Without a seed this returns the ORIGINAL single-run checkpoint. That matters:
+    iteration 1's original run is a ~5 sigma outlier that does not replicate
+    (see THESIS_STATUS 2.6), so a common-task evaluation run without a seed
+    inherits it. Thesis tables should use the per-seed runs and report mean+/-std.
+    """
+    if method == "iteration4":
+        name = "yolo26-dfire" if seed is None else f"yolo26-dfire-seed{seed}"
+        return CHECKPOINTS / "iteration4" / name / "weights" / "best.pt"
+    directory = method if seed is None else f"{method}-seed{seed}"
+    return CHECKPOINTS / directory / "best_model.pt"
+
+
 def load_state(model: torch.nn.Module, path: Path, device: torch.device) -> bool:
     if not path.exists():
         logger.warning("Checkpoint missing: %s", path)
@@ -386,6 +403,12 @@ def parse_args() -> argparse.Namespace:
         "--mask-area", type=float, default=0.005, help="Segmentation area threshold."
     )
     parser.add_argument("--output", default="common_eval.csv", help="CSV filename under results/.")
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="Evaluate the checkpoint from this seeded run (checkpoints/<method>-seed<N>). "
+             "Omit to use the original single-run checkpoint -- which for iteration 1 is a "
+             "non-replicating outlier, so thesis tables should always pass a seed.",
+    )
     parser.add_argument(
         "--onnx-dir",
         type=Path,
@@ -439,6 +462,7 @@ def main() -> None:
                 "threshold": threshold,
                 "n_images": len(image_paths),
                 "domain_shift": int(domain_shift),
+                "seed": args.seed if args.seed is not None else "",
                 "notes": notes,
                 **metrics,
             }
@@ -485,7 +509,7 @@ def main() -> None:
         from src.model import FireCNN
 
         model = FireCNN(device=device)
-        if load_state(model, CHECKPOINTS / "iteration1" / "best_model.pt", device):
+        if load_state(model, checkpoint_for("iteration1", args.seed), device):
             predicted = predict_classifier(model, image_paths, 224, device, binary=True)
             emit(
                 "iteration1",
@@ -504,7 +528,7 @@ def main() -> None:
         from src.model import MobileNetV3FireClassifier
 
         model = MobileNetV3FireClassifier(num_classes=4, pretrained=False, device=device)
-        if load_state(model, CHECKPOINTS / method / "best_model.pt", device):
+        if load_state(model, checkpoint_for(method, args.seed), device):
             predicted = predict_classifier(model, image_paths, 224, device, binary=False)
             emit(
                 method,
@@ -517,7 +541,7 @@ def main() -> None:
         torch.cuda.empty_cache()
 
     if "iteration4" in args.methods:
-        weights = CHECKPOINTS / "iteration4" / "yolo26-dfire" / "weights" / "best.pt"
+        weights = checkpoint_for("iteration4", args.seed)
         if weights.exists():
             thresholds = [0.05, 0.10, 0.25, 0.40, 0.50, 0.70] if args.sweep else [args.conf]
             for threshold in thresholds:
@@ -538,7 +562,7 @@ def main() -> None:
         from src.model_segmentation import LightweightUNet
 
         model = LightweightUNet(num_classes=3, device=device)
-        if load_state(model, CHECKPOINTS / "iteration5" / "best_model.pt", device):
+        if load_state(model, checkpoint_for("iteration5", args.seed), device):
             thresholds = (
                 [0.0005, 0.001, 0.005, 0.01, 0.02, 0.05] if args.sweep else [args.mask_area]
             )
