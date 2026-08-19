@@ -167,10 +167,47 @@
       "val&test": 0
     },
     "content_duplicates": {
-      "status": "checked",
-      "n_cross_split_duplicate_groups": 0,
-      "n_within_split_duplicate_groups": 0,
-      "cross_split_examples": []
+      "status": "not run (pass --hash-check)"
     }
+  },
+  "coco_segmentation": {
+    "source": "Roboflow COCO export (segmentation, iteration 5)",
+    "total_images": 7110,
+    "splits": {
+      "train": {
+        "n_images": 7050,
+        "n_images_with_annotations": 7050,
+        "n_annotations": 16613,
+        "annotations_per_category": {
+          "fire": 9658,
+          "smoke": 6955
+        },
+        "non_polygon_annotations": 0,
+        "share_percent": 99.15611814345992
+      },
+      "valid": {
+        "n_images": 40,
+        "n_images_with_annotations": 40,
+        "n_annotations": 97,
+        "annotations_per_category": {
+          "fire": 58,
+          "smoke": 39
+        },
+        "non_polygon_annotations": 0,
+        "share_percent": 0.5625879043600562
+      },
+      "test": {
+        "n_images": 20,
+        "n_images_with_annotations": 19,
+        "n_annotations": 48,
+        "annotations_per_category": {
+          "fire": 29,
+          "smoke": 19
+        },
+        "non_polygon_annotations": 0,
+        "share_percent": 0.2812939521800281
+      }
+    },
+    "notes": "Split is extremely unbalanced; the test split holds 20 images. Segmentation accuracy figures must be reported with that caveat. All segmentations are polygons (no RLE), so nothing is dropped by the polygon-only mask renderer in src/dataset_segmentation.py."
   }
 }

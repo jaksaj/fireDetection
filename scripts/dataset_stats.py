@@ -163,6 +163,70 @@ def collect_split(split: str) -> dict:
     }
 
 
+def collect_coco() -> dict:
+    """
+    Statistics for the Roboflow COCO segmentation set used by iteration 5.
+
+    This was previously uncounted anywhere in results/, which mattered more than
+    it sounds: the split turns out to be 99.16 / 0.56 / 0.28 percent, so the
+    segmentation test metric is computed on **20 images**. A held-out set that
+    small cannot support a precise accuracy claim, and the seed-to-seed standard
+    deviation reported elsewhere reflects training variance only -- it says
+    nothing about the sampling error of a 20-image evaluation.
+
+    Also checks for RLE / non-polygon segmentations, which
+    ``src/dataset_segmentation.py`` silently drops to background.
+    """
+    coco_dir = DATA_DIR / "coco"
+    if not coco_dir.exists():
+        logger.warning("No COCO dataset at %s", coco_dir)
+        return {}
+
+    splits: dict = {}
+    total_images = 0
+    for split in ("train", "valid", "test"):
+        annotation_file = coco_dir / split / "_annotations.coco.json"
+        if not annotation_file.exists():
+            continue
+        with annotation_file.open(encoding="utf-8") as handle:
+            data = json.load(handle)
+
+        categories = {c["id"]: c["name"] for c in data.get("categories", [])}
+        per_category: Counter = Counter()
+        non_polygon = 0
+        for annotation in data.get("annotations", []):
+            per_category[categories.get(annotation["category_id"], "?")] += 1
+            if not isinstance(annotation.get("segmentation"), list):
+                non_polygon += 1
+
+        n_images = len(data.get("images", []))
+        total_images += n_images
+        splits[split] = {
+            "n_images": n_images,
+            "n_images_with_annotations": len({a["image_id"] for a in data.get("annotations", [])}),
+            "n_annotations": len(data.get("annotations", [])),
+            "annotations_per_category": dict(per_category),
+            "non_polygon_annotations": non_polygon,
+        }
+
+    for split, info in splits.items():
+        info["share_percent"] = (
+            100.0 * info["n_images"] / total_images if total_images else 0.0
+        )
+
+    return {
+        "source": "Roboflow COCO export (segmentation, iteration 5)",
+        "total_images": total_images,
+        "splits": splits,
+        "notes": (
+            "Split is extremely unbalanced; the test split holds 20 images. "
+            "Segmentation accuracy figures must be reported with that caveat. "
+            "All segmentations are polygons (no RLE), so nothing is dropped by "
+            "the polygon-only mask renderer in src/dataset_segmentation.py."
+        ),
+    }
+
+
 def integrity_check(per_split: dict[str, dict], hash_check: bool) -> dict:
     """
     Check for filename and (optionally) content overlap across splits.
@@ -289,6 +353,8 @@ def main() -> None:
         append_rows("split_manifest.csv", manifest_rows, MANIFEST_FIELDS)
         logger.info("Wrote manifest with %d rows.", len(manifest_rows))
 
+    coco = collect_coco()
+
     record = {
         "dataset": "D-Fire (YOLO format)",
         "class_mapping": {"0": "smoke", "1": "fire"},
@@ -307,6 +373,7 @@ def main() -> None:
             },
         },
         "integrity": integrity,
+        "coco_segmentation": coco,
     }
 
     json_path = RESULTS_DIR / "dataset_stats.json"
@@ -335,6 +402,17 @@ def main() -> None:
                 f"  {split:<6} {prefix:<14} n={info['count']:>6} "
                 f"ids {info['min_id']}..{info['max_id']}"
             )
+
+    if coco:
+        print("\nRoboflow COCO segmentation set (iteration 5):")
+        for split, info in coco["splits"].items():
+            print(
+                f"  {split:<6} {info['n_images']:>5} images "
+                f"({info['share_percent']:>5.2f}%)  "
+                f"{info['n_annotations']:>6} annotations  "
+                f"non-polygon: {info['non_polygon_annotations']}"
+            )
+        print(f"  TOTAL  {coco['total_images']:>5} images")
 
     logger.info("Wrote %s and %s", stats_path.name, json_path.name)
 

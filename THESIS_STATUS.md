@@ -1,6 +1,6 @@
 # Thesis Work — Status and Findings
 
-**Updated:** 2026-08-19 (rev 2)
+**Updated:** 2026-08-19 (rev 3)
 **Companion documents:** [thesis_plan.md](thesis_plan.md) (the plan), [thesis_readiness_report.md](thesis_readiness_report.md) (the original audit)
 
 This is the running record of what has been built, what has been measured, and
@@ -579,6 +579,43 @@ node it is close to indefensible. This is the concrete deployment recommendation
 the thesis was set up to produce, and it now rests on measurement rather than
 intuition. Figures: `results/figures/accuracy_vs_energy.png`,
 `results/figures/jetson_energy_tradeoff.png`.
+
+---
+
+### 2.13 The segmentation test split holds 20 images
+
+The Roboflow COCO set used by iteration 5 was never counted anywhere in
+`results/` until now (`results/dataset_stats.json` -> `coco_segmentation`).
+Counting it changes how its numbers must be read:
+
+| Split | Images | Share | Annotations |
+|---|---|---|---|
+| train | 7,050 | **99.16%** | 16,613 |
+| valid | 40 | 0.56% | 97 |
+| **test** | **20** | **0.28%** | 48 |
+| total | 7,110 | | 16,758 |
+
+**Every segmentation accuracy figure in this project is computed on 20 images**,
+one of which carries no annotations at all (19 of 20 are annotated). At that
+size a single image is 5% of the metric, and the difference between 85% and 90%
+mIoU is one image changing.
+
+The +/- 1.19 standard deviation reported for iteration 5's mIoU is **seed
+variance only** -- it measures how much training runs differ, not the sampling
+error of a 20-image evaluation, which is far larger and is not quantified
+anywhere. Do not present that interval as a confidence interval on the true mIoU.
+
+This compounds the domain-shift limitation already recorded: iteration 5 is
+trained on Roboflow images, evaluated for the common-task comparison on D-Fire
+images, and evaluated for its native mIoU on 20 Roboflow images. Of the five
+methods it has by some distance the weakest evidential basis, and the thesis
+should say so rather than presenting its mIoU alongside the others as an equal.
+
+One thing this check clears: **all segmentations are polygons, with zero RLE or
+`iscrowd` annotations** across all three splits. `src/dataset_segmentation.py`
+renders polygons only and silently drops anything else to background; that code
+path was flagged as a risk in the original audit, and it is now confirmed to
+drop nothing.
 
 ---
 
