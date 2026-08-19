@@ -1,5 +1,10 @@
 # Fire Detection — Current State & Plan to Thesis-Grade
 
+> 📎 **HISTORICAL — the plan (2026-07-31).** Substantially executed; the numbers
+> quoted are the pre-measurement ones. Current results are in
+> [THESIS_STATUS.md](THESIS_STATUS.md).
+
+
 **Date:** 2026-07-31
 **Machine audited:** `DESKTOP-7FJTRSO` (the workstation that actually ran the experiments)
 **Supersedes:** the open questions in [thesis_readiness_report.md](thesis_readiness_report.md) — 9 of 10 are answered below from measured evidence.

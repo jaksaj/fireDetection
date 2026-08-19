@@ -25,13 +25,24 @@ $$\text{Presence} \longrightarrow \text{Multi-Class} \longrightarrow \text{Robus
 
 ### 📊 Iteration Results Matrix
 
-| Iteration | Task Type | Architecture Backbone | Main Dataset | Primary Performance Metric | Key Findings |
+| Iteration | Task Type | Architecture | Dataset | Test metric (mean ± std, 5 seeds) | Key finding |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | Binary Classification | `FireCNN` (Scratch Built) | D-Fire YOLO Split | **Test Acc:** 93.80% <br> **Test Loss:** 0.183 | Confirmed pipeline validity; unable to isolate smoke-only hazards. |
-| **2** | 4-Class Transfer Learning | `MobileNetV3-Small` Head | D-Fire YOLO Split | **Val Acc:** 89.16% <br> **Macro F1:** 85.25% | Isolated mixed cases. "Only Fire" remains low (68.78% F1) due to imbalance. |
-| **3** | Robust 4-Class Optimization | `MobileNetV3-Small` + Albumentations | D-Fire YOLO Split | **Test Acc:** 90.25% <br> **Test F1:** 86.72% | Slightly lower validation metrics, but drastically higher real-world generalization. |
-| **4** | Object Detection | `YOLO26n` (Ultralytics) | D-Fire YOLO Split | **mAP50:** 75.24% <br> **mAP50-95:** 44.29% | Spatial coordinate tracking. High precision (75.90%) avoids false alarms. |
-| **5** | Semantic Segmentation | Lightweight `U-Net` (Dice+Focal) | Roboflow COCO Masks | **Test mIoU:** 85.22% <br> **Test Dice:** 91.81% | Full pixel tracking; captures true contour and spread of diffuse smoke plumes. |
+| **1** | Binary classification | `FireCNN` (scratch) | D-Fire | **Acc 92.80% ± 0.20** | Confirmed pipeline validity; cannot isolate smoke-only hazards. |
+| **2** | 4-class transfer learning | `MobileNetV3-Small` | D-Fire | **Acc 88.86% ± 0.90** <br> **Macro-F1 84.45% ± 1.40** | Isolates mixed cases. `Only_Fire` is the weakest class (5.4% of the data). |
+| **3** | Robust 4-class training | `MobileNetV3-Small` + Albumentations | D-Fire | **Acc 89.89% ± 0.30** <br> **Macro-F1 86.06% ± 0.46** | Clean-data gain over iter. 2 is **not** significant (p ≈ 0.06); the real benefit is halved degradation under unseen corruption, at identical inference cost. |
+| **4** | Object detection | `YOLO26n` (Ultralytics) | D-Fire | **mAP50 74.88% ± 0.23** <br> **mAP50-95 42.99% ± 0.11** (n=3) | Best method on the common task. Per class, **fire is harder than smoke** (mAP50 0.681 vs 0.817). |
+| **5** | Semantic segmentation | Lightweight `U-Net` (Dice+Focal) | Roboflow COCO | **mIoU 85.47% ± 1.19** <br> **hazard-only mIoU 80.05% ± 1.57** | Pixel-level contours. Background inflates the 3-class mIoU by ~5 points. |
+
+> **These supersede the single-run figures previously reported here.** Every value
+> is a mean ± standard deviation over repeated seeded runs, regenerated from
+> `results/metrics.csv` via `python scripts/make_tables.py`. Two earlier numbers
+> did not survive repetition: iteration 1's 93.80% (a ~5σ outlier; the seeded mean
+> is 92.80%) and iteration 4's 75.24 mAP50, which was a *validation* figure
+> reported alongside test figures from the other iterations.
+>
+> For the cross-paradigm comparison on a single common task, plus measured
+> latency and energy on an RTX 3060 and a Jetson Orin Nano, see
+> **[THESIS_STATUS.md](THESIS_STATUS.md)**.
 
 ---
 

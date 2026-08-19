@@ -1,5 +1,17 @@
 # Fire and Smoke Detection: Iteration Results Report
 
+> ⚠️ **SUPERSEDED — do not cite these numbers.**
+> This report records the original *single, unrepeated* runs. Several of its
+> figures did not survive multi-seed repetition, and one (iteration 4's
+> mAP50 75.24 / mAP50-95 44.29) is a **validation** figure presented as if it
+> were a test result. Iteration 1's 93.80% is a ~5σ outlier against a seeded
+> mean of 92.80% ± 0.20%.
+>
+> It is kept for provenance — it documents what was believed before the
+> measurement infrastructure existed. **For current numbers use
+> [THESIS_STATUS.md](THESIS_STATUS.md)** and the CSVs under `results/`.
+
+
 This report aggregates the five completed training iterations in this workspace and explains how the project progressed from coarse fire presence detection to pixel-level segmentation.
 
 The results below are taken from the saved Weights & Biases summaries under `wandb/`. Iteration 2 appears twice in the run history; the later completed run is used here because it is the most complete recorded experiment for that stage.

@@ -1,5 +1,12 @@
 # Thesis Readiness Report — `fireDetection`
 
+> 📎 **HISTORICAL — the audit that started this work (2026-07-31).**
+> Its findings have been acted on; the numbers it quotes are the pre-measurement
+> ones it was auditing. Two of its claims were later disproved: the `val/` split
+> is clean (zero cross-split filename or content duplicates), and iteration 4 was
+> already seeded via Ultralytics. See [THESIS_STATUS.md](THESIS_STATUS.md).
+
+
 **Audit date:** 2026-07-31
 **Scope:** whole repository at commit `ed80d00` (branch `main`), plus the untracked working files (`CLAUDE.md`, `explanation.md`, `verbal_exam_defense_guide.md`, `prez.html`).
 **Method:** every `.py`, `.yaml`, and `.md` file in the repo was read. Claims below cite `file:line`. Nothing was executed (no GPU on this machine; training artifacts live on the SSH workstation).
