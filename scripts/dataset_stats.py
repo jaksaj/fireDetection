@@ -26,7 +26,8 @@ still intact.
 Usage::
 
     python scripts/dataset_stats.py
-    python scripts/dataset_stats.py --hash-check     # also scan for duplicate image content
+    python scripts/dataset_stats.py                 # includes the duplicate scan
+    python scripts/dataset_stats.py --skip-hash-check   # faster, but see the warning
 """
 
 from __future__ import annotations
@@ -227,6 +228,19 @@ def collect_coco() -> dict:
     }
 
 
+
+def _previous_content_duplicates() -> dict | None:
+    """Read the content-duplicate block from a previously written stats file."""
+    path = RESULTS_DIR / "dataset_stats.json"
+    if not path.exists():
+        return None
+    try:
+        with path.open(encoding="utf-8") as handle:
+            return json.load(handle).get("integrity", {}).get("content_duplicates")
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def integrity_check(per_split: dict[str, dict], hash_check: bool) -> dict:
     """
     Check for filename and (optionally) content overlap across splits.
@@ -246,7 +260,21 @@ def integrity_check(per_split: dict[str, dict], hash_check: bool) -> dict:
                 report["filename_overlaps"][f"{first}&{second}_examples"] = sorted(overlap)[:10]
 
     if not hash_check:
-        report["content_duplicates"]["status"] = "not run (pass --hash-check)"
+        # Do not clobber a completed scan with a placeholder. This exact
+        # regression happened once: the script was re-run without the flag and
+        # replaced a "checked / 0 duplicates" record with "not run", leaving
+        # THESIS_STATUS asserting something its evidence file no longer showed.
+        previous = _previous_content_duplicates()
+        if previous and previous.get("status") == "checked":
+            previous["carried_forward"] = True
+            previous["note"] = (
+                "Carried forward from an earlier run; this invocation used "
+                "--skip-hash-check. Re-run without that flag to refresh."
+            )
+            report["content_duplicates"] = previous
+            logger.warning("Carried forward the previous duplicate scan rather than discarding it.")
+        else:
+            report["content_duplicates"]["status"] = "not run (--skip-hash-check)"
         return report
 
     logger.info("Hashing image content across splits — this reads every file.")
@@ -284,9 +312,13 @@ def integrity_check(per_split: dict[str, dict], hash_check: bool) -> dict:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Persist D-Fire dataset statistics.")
     parser.add_argument(
-        "--hash-check",
+        "--skip-hash-check",
         action="store_true",
-        help="Also MD5-hash every image to detect duplicate content across splits.",
+        help=(
+            "Skip MD5-hashing every image. NOT recommended: the duplicate scan is "
+            "the sole evidence that the test split is uncontaminated, and a run "
+            "without it previously overwrote a completed result with a placeholder."
+        ),
     )
     parser.add_argument(
         "--no-manifest",
@@ -309,7 +341,7 @@ def main() -> None:
         logger.error("No splits found under %s", DATA_DIR)
         return
 
-    integrity = integrity_check(per_split, args.hash_check)
+    integrity = integrity_check(per_split, not args.skip_hash_check)
 
     totals = Counter()
     for data in per_split.values():

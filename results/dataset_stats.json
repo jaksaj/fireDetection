@@ -167,7 +167,10 @@
       "val&test": 0
     },
     "content_duplicates": {
-      "status": "not run (pass --hash-check)"
+      "status": "checked",
+      "n_cross_split_duplicate_groups": 0,
+      "n_within_split_duplicate_groups": 0,
+      "cross_split_examples": []
     }
   },
   "coco_segmentation": {
