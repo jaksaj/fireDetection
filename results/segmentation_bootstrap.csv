@@ -1,0 +1,11 @@
+seed,metric,point_estimate,ci_low,ci_high,ci_width,n_images,n_resamples,interval_type,checkpoint
+42,mIoU,0.8366457453871664,0.7586903641096816,0.8895851672174717,0.13089480310779011,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed42\best_model.pt
+42,mIoU_hazard_only,0.7768966638083208,0.6658641558499289,0.8500526263394473,0.18418847048951847,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed42\best_model.pt
+43,mIoU,0.8494465030519928,0.7761514314331748,0.8943167233592665,0.11816529192609171,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed43\best_model.pt
+43,mIoU_hazard_only,0.7928582353169988,0.6879581774811088,0.8559464067718824,0.16798822929077362,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed43\best_model.pt
+44,mIoU,0.8655484390216719,0.8001887712217078,0.9057347232123077,0.1055459519905999,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed44\best_model.pt
+44,mIoU_hazard_only,0.8151624344870765,0.7215375923873572,0.8709698373057818,0.14943224491842466,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed44\best_model.pt
+45,mIoU,0.8579271194600574,0.7902099442520565,0.899440684817181,0.1092307405651245,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed45\best_model.pt
+45,mIoU_hazard_only,0.8055133074406959,0.7074700671599187,0.8636484311505612,0.15617836399064255,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed45\best_model.pt
+46,mIoU,0.8640530190512671,0.8105116635300575,0.8989980223750038,0.08848635884494627,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed46\best_model.pt
+46,mIoU_hazard_only,0.8120237151274327,0.7342057781754596,0.8613948999368695,0.12718912176140984,20,10000,bootstrap over test images (sampling error),C:\git\fireDetection\checkpoints\iteration5-seed46\best_model.pt

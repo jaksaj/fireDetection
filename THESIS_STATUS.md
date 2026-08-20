@@ -667,10 +667,32 @@ one of which carries no annotations at all (19 of 20 are annotated). At that
 size a single image is 5% of the metric, and the difference between 85% and 90%
 mIoU is one image changing.
 
-The +/- 1.19 standard deviation reported for iteration 5's mIoU is **seed
-variance only** -- it measures how much training runs differ, not the sampling
-error of a 20-image evaluation, which is far larger and is not quantified
-anywhere. Do not present that interval as a confidence interval on the true mIoU.
+The ± 1.19 standard deviation reported for iteration 5's mIoU is **seed variance
+only** — it measures how much training runs differ, not how much a different
+20-image test set would move the number.
+
+**That sampling error is now quantified** (`scripts/bootstrap_segmentation_ci.py`,
+`results/segmentation_bootstrap.csv`): bootstrapping the 20 test images 10,000
+times, per seeded checkpoint, gives
+
+| Metric | Point estimate | Seed std (n=5) | **Bootstrap 95% CI** | CI width |
+|---|---|---|---|---|
+| mIoU | 0.8547 | ± 0.0119 | **[0.7872, 0.8976]** | 0.1105 |
+| hazard-only mIoU | 0.8005 | ± 0.0157 | **[0.7034, 0.8604]** | 0.1570 |
+
+The sampling interval is roughly **2.3× wider** than the seed-based one
+(half-widths 0.055 vs 0.023): the dominant uncertainty in this result is which 20
+images happen to be in the test set, not which seed trained the model. Quote the
+segmentation result as **85% mIoU (95% CI 79–90%)**, not as 85.47% ± 1.19%.
+
+The two intervals answer different questions and must not be combined or
+substituted:
+
+- *seed std* — how much retraining moves the number;
+- *bootstrap CI* — how much a different test sample would move it.
+
+As a check that the recomputation is faithful, the bootstrap's point estimates
+reproduce the trainer's reported values exactly (0.8547, std 0.0119).
 
 This compounds the domain-shift limitation already recorded: iteration 5 is
 trained on Roboflow images, evaluated for the common-task comparison on D-Fire
