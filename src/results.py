@@ -23,6 +23,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import os
 import platform
 import subprocess
 import sys
@@ -93,6 +94,25 @@ def environment_info() -> dict[str, Any]:
             info["gpu_memory_gb"] = round(props.total_memory / 1e9, 2)
             info["gpu_capability"] = f"{props.major}.{props.minor}"
     except ImportError:
+        pass
+
+    # Inference-runtime versions. These were previously not recorded anywhere,
+    # so the bibliography could not state which ONNX Runtime or TensorRT
+    # produced a given measurement -- and this machine ends up with both
+    # onnxruntime and onnxruntime-gpu installed, which shadow each other.
+    for name in ("onnxruntime", "tensorrt", "onnx", "torchvision", "ultralytics",
+                 "albumentations"):
+        try:
+            module = __import__(name)
+            info[name] = getattr(module, "__version__", "unknown")
+        except Exception:  # noqa: BLE001 - a missing runtime is not an error here
+            info[name] = "not installed"
+
+    try:
+        import onnxruntime as _ort
+
+        info["onnxruntime_providers"] = _ort.get_available_providers()
+    except Exception:  # noqa: BLE001
         pass
 
     return info

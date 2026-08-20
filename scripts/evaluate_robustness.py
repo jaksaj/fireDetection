@@ -45,6 +45,7 @@ from src.utils import configure_logging, resolve_device
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from evaluate_common import (  # noqa: E402
     build_eval_transform,
+    checkpoint_for,
     ground_truth_labels,
     list_test_images,
     load_state,
@@ -69,6 +70,8 @@ ROBUSTNESS_FIELDS = [
     "f1_Both",
     "accuracy_drop",
     "relative_drop_pct",
+    "seed",
+    "checkpoint",
 ]
 
 
@@ -103,14 +106,71 @@ def predict_corrupted(
     return np.array(predictions, dtype=np.int64)
 
 
-def build_model(method: str, device: torch.device) -> torch.nn.Module | None:
-    """Instantiate and load a 4-class classification checkpoint."""
+
+@torch.no_grad()
+def predict_corrupted_multi(
+    models: list[tuple[str, int | None, torch.nn.Module, Path]],
+    image_paths: list[Path],
+    image_size: int,
+    device: torch.device,
+    corruption: str,
+    severity: int,
+    batch_size: int = 64,
+) -> dict[tuple[str, int | None], np.ndarray]:
+    """
+    Corrupt each batch ONCE and evaluate every model on it.
+
+    Corruptions are deterministic functions of (image, severity), so the
+    corrupted pixels are identical for every model and every seed. Corrupting
+    per model -- as the single-model path does -- repeats the CPU-bound work
+    once per checkpoint. With 2 methods x 5 seeds that is 10x the necessary
+    corruption cost, and corruption, not inference, is the bottleneck here.
+
+    Results are bit-identical to evaluating each model separately.
+    """
+    transform = build_eval_transform(image_size)
+    for _, _, model, _ in models:
+        model.eval()
+
+    outputs: dict[tuple[str, int | None], list[int]] = {
+        (method, seed): [] for method, seed, _, _ in models
+    }
+
+    for start in range(0, len(image_paths), batch_size):
+        tensors = []
+        for path in image_paths[start : start + batch_size]:
+            with Image.open(path) as handle:
+                corrupted = apply_corruption(handle.convert("RGB"), corruption, severity)
+                tensors.append(transform(corrupted))
+        batch = torch.stack(tensors).to(device)
+
+        for method, seed, model, _ in models:
+            preds = model(batch).argmax(dim=1).cpu().numpy().tolist()
+            outputs[(method, seed)].extend(preds)
+
+    return {key: np.array(value, dtype=np.int64) for key, value in outputs.items()}
+
+
+def build_model(
+    method: str, device: torch.device, seed: int | None = None
+) -> tuple[torch.nn.Module | None, Path]:
+    """
+    Instantiate and load a 4-class classification checkpoint.
+
+    Returns the checkpoint path as well as the model. Without a seed this loads
+    the ORIGINAL single-run checkpoint; iteration 1's original run is a ~5 sigma
+    outlier that does not replicate, and the same class of defect put an
+    unreplicated checkpoint under the common-task comparison before it was
+    caught. The path is written into every output row so the basis of a result
+    is never in doubt.
+    """
     from src.model import MobileNetV3FireClassifier
 
+    path = checkpoint_for(method, seed)
     model = MobileNetV3FireClassifier(num_classes=4, pretrained=False, device=device)
-    if not load_state(model, CHECKPOINTS / method / "best_model.pt", device):
-        return None
-    return model
+    if not load_state(model, path, device):
+        return None, path
+    return model, path
 
 
 def parse_args() -> argparse.Namespace:
@@ -130,6 +190,16 @@ def parse_args() -> argparse.Namespace:
         default=sorted(CORRUPTIONS),
         choices=sorted(CORRUPTIONS),
     )
+    parser.add_argument(
+        "--seeds", nargs="+", type=int, default=None,
+        help="Evaluate several seeded checkpoints in one pass, sharing the "
+             "corruption work between them (identical results, ~n-times faster).",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="Evaluate the checkpoint from this seeded run. Omit to use the "
+             "original single-run checkpoint.",
+    )
     parser.add_argument("--output", default="robustness.csv")
     return parser.parse_args()
 
@@ -147,71 +217,77 @@ def main() -> None:
     labels = list(range(len(MULTICLASS_CLASS_NAMES)))
     rows: list[dict] = []
 
+    seeds = args.seeds if args.seeds else [args.seed]
+
+    # Load every (method, seed) checkpoint up front so one corruption pass can
+    # serve all of them.
+    models: list[tuple[str, int | None, torch.nn.Module, Path]] = []
     for method in args.methods:
-        model = build_model(method, device)
-        if model is None:
-            logger.warning("Skipping %s — no checkpoint.", method)
-            continue
+        for seed in seeds:
+            model, checkpoint_path = build_model(method, device, seed)
+            if model is None:
+                logger.warning("Skipping %s seed=%s — no checkpoint at %s",
+                               method, seed, checkpoint_path)
+                continue
+            models.append((method, seed, model, checkpoint_path))
 
-        model_name = "MobileNetV3-Small" + (" robust" if method == "iteration3" else "")
+    if not models:
+        logger.error("No checkpoints loaded.")
+        return
+    logger.info("Loaded %d checkpoints; corruption work is shared between them.", len(models))
 
-        # Clean baseline first: every drop is expressed relative to this, so the
-        # comparison is about degradation rather than absolute starting point.
-        clean_predictions = predict_corrupted(model, image_paths, 224, device, "none", 1)
-        clean_accuracy = accuracy_score(truth, clean_predictions)
-        logger.info("%s clean accuracy: %.4f", method, clean_accuracy)
+    def model_name_for(method: str) -> str:
+        return "MobileNetV3-Small" + (" robust" if method == "iteration3" else "")
 
-        combinations = [("none", 0)] + [
-            (name, severity) for name in args.corruptions for severity in SEVERITIES
-        ]
+    # Clean baseline per model; every drop is relative to its own clean score.
+    clean = predict_corrupted_multi(models, image_paths, 224, device, "none", 1)
+    clean_accuracy = {
+        key: accuracy_score(truth, preds) for key, preds in clean.items()
+    }
+    for (method, seed), value in sorted(clean_accuracy.items(), key=lambda kv: str(kv[0])):
+        logger.info("%s seed=%s clean accuracy: %.4f", method, seed, value)
 
-        for corruption, severity in combinations:
-            if corruption == "none":
-                predictions = clean_predictions
-            else:
-                predictions = predict_corrupted(
-                    model, image_paths, 224, device, corruption, severity
-                )
+    combinations = [("none", 0)] + [
+        (name, severity) for name in args.corruptions for severity in SEVERITIES
+    ]
 
-            accuracy = accuracy_score(truth, predictions)
-            per_class = f1_score(
-                truth, predictions, labels=labels, average=None, zero_division=0
+    for corruption, severity in combinations:
+        if corruption == "none":
+            predictions = clean
+        else:
+            predictions = predict_corrupted_multi(
+                models, image_paths, 224, device, corruption, severity
             )
+
+        for method, seed, _, checkpoint_path in models:
+            preds = predictions[(method, seed)]
+            accuracy = accuracy_score(truth, preds)
+            per_class = f1_score(truth, preds, labels=labels, average=None, zero_division=0)
+            base = clean_accuracy[(method, seed)]
             row = {
                 "method": method,
-                "model_name": model_name,
+                "model_name": model_name_for(method),
                 "corruption": corruption,
                 "group": corruption_group(corruption),
                 "severity": severity,
                 "n_images": len(image_paths),
                 "accuracy": accuracy,
                 "f1_macro": f1_score(
-                    truth, predictions, labels=labels, average="macro", zero_division=0
+                    truth, preds, labels=labels, average="macro", zero_division=0
                 ),
-                "accuracy_drop": clean_accuracy - accuracy,
-                "relative_drop_pct": (
-                    100.0 * (clean_accuracy - accuracy) / clean_accuracy
-                    if clean_accuracy
-                    else 0.0
-                ),
+                "accuracy_drop": base - accuracy,
+                "relative_drop_pct": (100.0 * (base - accuracy) / base) if base else 0.0,
+                "seed": seed if seed is not None else "",
+                "checkpoint": str(checkpoint_path),
             }
             for name, value in zip(MULTICLASS_CLASS_NAMES, per_class):
                 row[f"f1_{name}"] = float(value)
             rows.append(row)
 
-            logger.info(
-                "%-12s %-16s sev=%d acc=%.4f (drop %.4f, %.1f%%)",
-                method,
-                corruption,
-                severity,
-                accuracy,
-                row["accuracy_drop"],
-                row["relative_drop_pct"],
-            )
+        logger.info("%-16s sev=%d done (%d models)", corruption, severity, len(models))
 
-        del model
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     if not rows:
         logger.error("No results produced.")
