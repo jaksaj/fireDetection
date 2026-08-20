@@ -12,11 +12,14 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import wandb
 
-from src.utils import load_checkpoint, save_checkpoint
+from src.utils import load_checkpoint, save_checkpoint, resolve_device
 
 logger = logging.getLogger(__name__)
 
-DEVICE = torch.device("cuda")
+# Default only, resolved the same way as every other module. Training is
+# GPU-bound in practice, but hardcoding cuda here made this the last file
+# that could not be imported meaningfully on a CPU-only machine.
+DEVICE = resolve_device()
 
 
 @dataclass

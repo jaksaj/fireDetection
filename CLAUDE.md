@@ -46,7 +46,8 @@ transcribed by hand from a dashboard.
 
 ```bash
 # Dataset statistics, split manifest, and cross-split leakage check
-python scripts/dataset_stats.py [--hash-check]      # -> results/dataset_stats.{json,csv}, split_manifest.csv
+python scripts/dataset_stats.py                     # -> results/dataset_stats.{json,csv}, split_manifest.csv
+#   (the duplicate scan runs by default; --skip-hash-check opts out and preserves any prior result)
 
 # Inference cost: latency/FLOPs/memory across device x precision x backend.
 # Runs unchanged on the workstation and on a Jetson; rows are tagged per host.
@@ -57,7 +58,8 @@ python scripts/run_benchmarks.py [--batch-sizes 1 4 8 16] [--quick]   # -> resul
 python scripts/evaluate_common.py [--sweep]         # -> results/common_eval.csv
 
 # Robustness under a fixed corruption suite (inference only, no retraining)
-python scripts/evaluate_robustness.py               # -> results/robustness.csv
+python scripts/evaluate_robustness.py --seeds 42 43 44 45 46   # -> results/robustness.csv
+#   (--seeds shares corruption work across checkpoints: identical results, ~n-times faster)
 
 # Backbone comparison at identical budget/resolution/seed
 python scripts/run_comparison.py --all --seeds 42 43 44 [--subprocess]
@@ -107,7 +109,18 @@ Iteration 5 (segmentation) uses a separate COCO polygon-mask dataset (`src/datas
 
 ### Device handling
 
-`DEVICE = torch.device("cuda")` is hardcoded in both `src/trainer/base.py` and `src/utils.py` — there is no CPU fallback. Training/evaluation scripts require a CUDA GPU to run.
+Every module resolves its device through `src/utils.resolve_device()`, which honours an explicit `device=` argument and otherwise falls back to CPU with a warning when CUDA is unavailable. Models take a `device=` parameter and no longer force themselves onto CUDA in `__init__`.
+
+What actually needs a GPU:
+
+- **Training** (`scripts/run_iteration*.py`, `run_comparison.py`, `run_seeds.py`) — GPU-bound in practice. These will run on CPU but slowly enough to be impractical.
+
+What does **not** need a GPU, and is routinely run without one:
+
+- **Benchmarking** (`run_benchmarks.py`) — CPU and ARM measurements are a core result; the x86-vs-ARM comparison depends on models being instantiable on CPU.
+- **Evaluation** (`evaluate_common.py`, `evaluate_robustness.py`, `analyze_failures.py`) via `--device cpu`.
+- **Export and quantization** (`export_for_jetson.py`, `quantize_int8.py`) — export runs on CPU by design, and static INT8 calibration is CPU-only.
+- **The entire Jetson bundle** (`jetson/`), which has no PyTorch at all on the device.
 
 ### Config-driven experiments
 
