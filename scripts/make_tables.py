@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -166,6 +167,12 @@ def benchmark_outputs(benchmarks: pd.DataFrame) -> None:
     save_figure(fig, "latency_by_device")
 
     # Batch sweep, if more than one batch size was measured.
+    if benchmarks["batch_size"].nunique() <= 1:
+        stale_figure_guard(
+            "throughput_vs_batch",
+            "benchmarks.csv holds only one batch size; a previous sweep's figure "
+            "would no longer match the data",
+        )
     if benchmarks["batch_size"].nunique() > 1:
         fig, axis = plt.subplots(figsize=(8, 5))
         for model in models:
@@ -368,6 +375,10 @@ def jetson_outputs(benchmarks: pd.DataFrame) -> None:
     # Ordered from lowest to highest power budget.
     order = [m for m in ["15W", "25W", "MAXN_SUPER"] if m in set(jetson["mode"])]
     if len(order) < 2:
+        stale_figure_guard(
+            "jetson_power_modes",
+            "fewer than two power modes present in benchmarks.csv",
+        )
         return
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
@@ -421,6 +432,11 @@ def energy_outputs(energy: pd.DataFrame, common: pd.DataFrame | None) -> None:
     )
 
     # --- Energy vs latency across power modes -------------------------------
+    if len(order) <= 1:
+        stale_figure_guard(
+            "jetson_energy_tradeoff",
+            "fewer than two power modes present in jetson_energy.csv",
+        )
     if len(order) > 1:
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
         for method, style in METHOD_STYLE.items():
@@ -714,6 +730,147 @@ def detection_per_class_outputs(metrics: pd.DataFrame) -> None:
         )
 
 
+def stale_figure_guard(stem: str, reason: str) -> None:
+    """
+    Delete a figure that can no longer be regenerated, rather than leaving it.
+
+    A gate that silently skips regeneration leaves the previous render on disk
+    looking current. That is how threshold_sensitivity.png survived two rounds of
+    corrections still plotting unseeded checkpoints: the data it was built from
+    stopped being passed in, the `if` went false, and nothing said so. Removing
+    the file makes the absence visible instead of counterfeit.
+    """
+    removed = []
+    for suffix in ("png", "pdf"):
+        path = FIGURES_DIR / f"{stem}.{suffix}"
+        if path.exists():
+            path.unlink()
+            removed.append(path.name)
+    if removed:
+        logger.warning("Deleted stale figure %s (%s)", ", ".join(removed), reason)
+
+
+def threshold_outputs() -> None:
+    """
+    Macro-F1 against the operating threshold, from the SEEDED sweep.
+
+    This figure justifies the operating points used everywhere else (detector
+    confidence 0.10, mask-area fraction 0.02). It must therefore come from the
+    same checkpoints as the headline numbers; an earlier version was built from
+    the original unseeded runs, where iteration 5 scored 0.6999 rather than its
+    seeded 0.7117 -- a gap larger than that method's own seed standard deviation.
+    """
+    path = RESULTS_DIR / "common_eval_threshold_sweep.csv"
+    if not path.exists():
+        stale_figure_guard(
+            "threshold_sensitivity",
+            "results/common_eval_threshold_sweep.csv is missing; regenerate with "
+            "scripts/evaluate_common.py --sweep --seed N",
+        )
+        return
+
+    sweep = pd.read_csv(path)
+    sweep = sweep[(sweep["axis"] == "binary") & sweep["threshold"].notna()]
+    if sweep.empty:
+        stale_figure_guard("threshold_sensitivity", "sweep file contains no binary rows")
+        return
+
+    grouped = (
+        sweep.groupby(["method", "threshold"])["f1_macro"]
+        .agg(["mean", "std", "size"])
+        .reset_index()
+        .rename(columns={"mean": "f1_macro", "size": "n_seeds"})
+    )
+    save_table(
+        grouped,
+        "threshold_sensitivity",
+        "Macro-F1 vs operating threshold, mean ± std across seeded checkpoints",
+    )
+
+    fig, axis = plt.subplots(figsize=(8.5, 5))
+    plotted = False
+    for method, group in grouped.groupby("method"):
+        group = group.sort_values("threshold")
+        if len(group) < 2:
+            continue
+        style = METHOD_STYLE.get(method, {"label": method, "color": None, "marker": "o"})
+        axis.errorbar(
+            group["threshold"], group["f1_macro"],
+            yerr=group["std"].fillna(0.0),
+            marker=style["marker"], color=style["color"], label=style["label"],
+            capsize=3, linewidth=1.6,
+        )
+        plotted = True
+
+    if not plotted:
+        plt.close(fig)
+        stale_figure_guard("threshold_sensitivity", "no method had two or more sweep points")
+        return
+
+    n_seeds = int(grouped["n_seeds"].max())
+    axis.set_xscale("log")
+    axis.set_xlabel("Operating threshold (detector confidence / mask-area fraction, log scale)")
+    axis.set_ylabel("Macro-F1 on the common binary task")
+    axis.set_title(
+        "Sensitivity to the collapse threshold\n"
+        f"seeded checkpoints, mean ± std (up to {n_seeds} seeds per point)"
+    )
+    axis.legend(fontsize=8)
+    axis.grid(alpha=0.3)
+    save_figure(fig, "threshold_sensitivity")
+
+
+
+def audit_stale_outputs(started_at: float) -> None:
+    """
+    Report any figure or table this run did not rewrite.
+
+    Every output here is derived from a CSV, so a full run should refresh all of
+    them. Anything left with an older timestamp was produced by an earlier run
+    against data that may since have been corrected -- which is precisely how a
+    figure plotting retired numbers survived two rounds of fixes and stayed on
+    disk looking current.
+
+    This is a report, not a deletion: a genuinely optional output (a device that
+    was only ever benchmarked once, say) is legitimately absent from a later run,
+    and the person running it should decide. The point is that it is said out
+    loud rather than passing silently.
+    """
+    # Outputs owned by a different script. Flagging these every run would train
+    # the reader to ignore the warning, which would defeat the audit entirely.
+    external = {"prisma_flow": "scripts/make_prisma_figure.py"}
+
+    stale: list[str] = []
+    for directory, patterns in ((FIGURES_DIR, ("*.png", "*.pdf")), (TABLES_DIR, ("*.md", "*.tex"))):
+        if not directory.exists():
+            continue
+        for pattern in patterns:
+            for path in sorted(directory.glob(pattern)):
+                if path.stem in external:
+                    continue
+                if path.stat().st_mtime < started_at:
+                    stale.append(str(path.relative_to(RESULTS_DIR)))
+
+    if not stale:
+        logger.info(
+            "Staleness audit: every figure and table was regenerated "
+            "(excluding %s, owned by other scripts).",
+            ", ".join(sorted(external)),
+        )
+        return
+
+    logger.warning(
+        "Staleness audit: %d output(s) were NOT regenerated by this run and may "
+        "predate corrections to the underlying data:", len(stale)
+    )
+    for name in stale:
+        logger.warning("    %s", name)
+    logger.warning(
+        "Regenerate the missing source data, or delete these files. Do not paste "
+        "them into a document until you know which."
+    )
+
+
 def common_eval_outputs(common: pd.DataFrame) -> None:
     for axis_name in common["axis"].unique():
         subset = common[common["axis"] == axis_name].copy()
@@ -734,25 +891,6 @@ def common_eval_outputs(common: pd.DataFrame) -> None:
             f"Common-task comparison ({axis_name} axis), best operating point per method",
         )
 
-    # Threshold sensitivity, where a sweep exists.
-    swept = common[common["threshold"].notna() & (common["axis"] == "binary")]
-    if swept["method"].nunique() and len(swept) > swept["method"].nunique():
-        fig, axis = plt.subplots(figsize=(8, 5))
-        for method in swept["method"].unique():
-            subset = swept[swept["method"] == method].sort_values("threshold")
-            if len(subset) < 2:
-                continue
-            style = METHOD_STYLE.get(method, {"label": method, "color": None, "marker": "o"})
-            axis.plot(
-                subset["threshold"], subset["f1_macro"],
-                marker=style["marker"], color=style["color"], label=style["label"],
-            )
-        axis.set_xlabel("Operating threshold (detector confidence / mask area fraction)")
-        axis.set_ylabel("Macro-F1 (binary axis)")
-        axis.set_title("Sensitivity to the collapse threshold")
-        axis.legend(fontsize=8)
-        axis.grid(alpha=0.3)
-        save_figure(fig, "threshold_sensitivity")
 
 
 # ---------------------------------------------------------------------------
@@ -967,6 +1105,9 @@ def main() -> None:
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Anything older than this at the end of the run was not refreshed.
+    started_at = time.time() - 1.0
+
     benchmarks = load("benchmarks.csv")
 
     # Prefer the seeded common evaluation when it exists. The original
@@ -1025,6 +1166,9 @@ def main() -> None:
         int8_outputs(benchmarks)
     if common is not None:
         common_eval_outputs(common)
+    # Called unconditionally: when the sweep data is absent this deletes
+    # the stale figure rather than leaving the previous render in place.
+    threshold_outputs()
     if common is not None and benchmarks is not None:
         pareto_outputs(common, benchmarks)
     if robustness is not None:
@@ -1036,6 +1180,8 @@ def main() -> None:
         dataset_outputs(dataset)
     if energy is not None:
         energy_outputs(energy, common)
+
+    audit_stale_outputs(started_at)
 
     logger.info("Figures -> %s", FIGURES_DIR)
     logger.info("Tables  -> %s", TABLES_DIR)
