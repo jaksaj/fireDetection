@@ -1,0 +1,34 @@
+# Mean accuracy drop per corruption group, per seeded checkpoint
+
+| method     | group              |   seed |   mean_drop |   mean_accuracy |
+|:-----------|:-------------------|-------:|------------:|----------------:|
+| iteration2 | clean              |     42 |      0.0000 |          0.8943 |
+| iteration2 | clean              |     43 |      0.0000 |          0.8839 |
+| iteration2 | clean              |     44 |      0.0000 |          0.9011 |
+| iteration2 | clean              |     45 |      0.0000 |          0.8785 |
+| iteration2 | clean              |     46 |      0.0000 |          0.8850 |
+| iteration2 | seen_in_training   |     42 |      0.0416 |          0.8527 |
+| iteration2 | seen_in_training   |     43 |      0.0433 |          0.8406 |
+| iteration2 | seen_in_training   |     44 |      0.0475 |          0.8535 |
+| iteration2 | seen_in_training   |     45 |      0.0425 |          0.8361 |
+| iteration2 | seen_in_training   |     46 |      0.0540 |          0.8311 |
+| iteration2 | unseen_in_training |     42 |      0.0647 |          0.8296 |
+| iteration2 | unseen_in_training |     43 |      0.0576 |          0.8263 |
+| iteration2 | unseen_in_training |     44 |      0.0738 |          0.8273 |
+| iteration2 | unseen_in_training |     45 |      0.0815 |          0.7970 |
+| iteration2 | unseen_in_training |     46 |      0.0816 |          0.8034 |
+| iteration3 | clean              |     42 |      0.0000 |          0.8906 |
+| iteration3 | clean              |     43 |      0.0000 |          0.8936 |
+| iteration3 | clean              |     44 |      0.0000 |          0.8874 |
+| iteration3 | clean              |     45 |      0.0000 |          0.8955 |
+| iteration3 | clean              |     46 |      0.0000 |          0.8867 |
+| iteration3 | seen_in_training   |     42 |      0.0391 |          0.8515 |
+| iteration3 | seen_in_training   |     43 |      0.0396 |          0.8541 |
+| iteration3 | seen_in_training   |     44 |      0.0414 |          0.8460 |
+| iteration3 | seen_in_training   |     45 |      0.0404 |          0.8551 |
+| iteration3 | seen_in_training   |     46 |      0.0383 |          0.8484 |
+| iteration3 | unseen_in_training |     42 |      0.0400 |          0.8506 |
+| iteration3 | unseen_in_training |     43 |      0.0400 |          0.8536 |
+| iteration3 | unseen_in_training |     44 |      0.0381 |          0.8492 |
+| iteration3 | unseen_in_training |     45 |      0.0363 |          0.8592 |
+| iteration3 | unseen_in_training |     46 |      0.0390 |          0.8477 |

@@ -1,0 +1,14 @@
+\begin{table}
+\caption{Static INT8 accuracy cost. FP32 baseline is the same original checkpoint the INT8 model was quantized from, not the seeded mean.}
+\begin{tabular}{llrrrll}
+\toprule
+model & label & fp32\_macro\_f1 & int8\_macro\_f1 & delta & calibration & checkpoint\_basis \\
+\midrule
+iteration4 & YOLO26n (detection) & 0.9689 & 0.4256 & -0.5433 & MinMax & original single run (not seeded) \\
+iteration2 & MobileNetV3-S (4-cls) & 0.9411 & 0.7327 & -0.2084 & Percentile & original single run (not seeded) \\
+iteration3 & MobileNetV3-S robust & 0.9510 & 0.7614 & -0.1896 & Percentile & original single run (not seeded) \\
+iteration5 & U-Net (segmentation) & 0.6999 & 0.6677 & -0.0322 & MinMax & original single run (not seeded) \\
+iteration1 & FireCNN (binary cls) & 0.9169 & 0.9103 & -0.0065 & MinMax & original single run (not seeded) \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,6 +1,6 @@
 # Thesis Work — Status and Findings
 
-**Updated:** 2026-08-19 (rev 3)
+**Updated:** 2026-08-20 (rev 4)
 **Companion documents:** [thesis_plan.md](thesis_plan.md) (the plan), [thesis_readiness_report.md](thesis_readiness_report.md) (the original audit)
 
 This is the running record of what has been built, what has been measured, and
@@ -54,12 +54,27 @@ fastest configuration per hardware class):
 | YOLO26n | **0.9692 ± 0.0018** | 16.62 ms | 45.19 ms | **5.55 ms** | 77.76 ms |
 | U-Net | 0.7117 ± 0.0108 | 4.88 ms | 107.78 ms | **3.96 ms** | 230.83 ms |
 
-Accuracy is the seeded mean; latency comes from a single trained checkpoint per
-method, since latency depends on architecture and not on learned weights.
+> **Which configuration this table shows.** Accuracy is the seeded mean. The two
+> desktop columns are **eager PyTorch FP32**; the two Jetson columns are
+> **TensorRT FP16 at MAXN_SUPER**. They are therefore *not* like-for-like, and
+> this table should be read as "what each hardware class does under the runtime
+> this project used for it", not as a hardware comparison.
+>
+> `results/tables/pareto_points.md` shows a different view: the **fastest
+> measured configuration per hardware class**, which may be ONNX Runtime or
+> TensorRT and may be INT8. The same cell can differ by up to 5× between the two
+> tables — FireCNN on the desktop GPU is 0.72 ms here (eager) and 0.129 ms there
+> (TensorRT FP16). Every row of `pareto_points.md` carries `backend` and
+> `precision` columns for exactly this reason, and `make_tables.py` now raises
+> rather than emitting that table without them.
+>
+> **The thesis and the companion paper must not quote different tables for the
+> same claim.** Cite this one for the per-runtime view and `pareto_points.md` for
+> the best-case view, and say which in the caption.
 
-Jetson figures are at MAXN_SUPER; the 15W and 25W modes are in §2.11. The
-desktop GPU column above is **eager PyTorch**, which understates that hardware by
-4–7×: with TensorRT the RTX 3060 runs YOLO26n in 2.27 ms rather than 16.62 ms.
+Latency comes from a single trained checkpoint per method, since it depends on
+architecture rather than on learned weights.
+
 For the matched TensorRT-on-both comparison — where the desktop is 1.4–3.3×
 faster than the Jetson — see §2.11.
 
@@ -141,19 +156,38 @@ Consequences worth stating explicitly:
   efficiency proxies this project used before now — would have ranked these two
   models in exactly the wrong order.
 
-### 2.4 FP16 is slower than FP32 for three of five models
+### 2.4 The FP16 penalty belongs to the runtime, not to the GPU
 
-| Model | FP32 | FP16 | Change |
-|---|---|---|---|
-| FireCNN | 0.72 ms | 0.83 ms | **+15%** |
-| MobileNetV3-S | 5.69 ms | 6.48 ms | **+14%** |
-| YOLO26n | 16.62 ms | 19.51 ms | **+17%** |
-| U-Net | 4.88 ms | **3.90 ms** | −20% |
+On the **same RTX 3060**, FP16 versus FP32 at batch 1
+(`results/tables/desktop_precision.md`):
 
-Only the U-Net — the one genuinely compute-bound model, at 28.2 GFLOPs — benefits
-from half precision. For launch-bound models the conversion overhead exceeds the
-arithmetic saving. "Use FP16 for edge deployment" is not unconditionally true and
-this project can now show why.
+| Model | eager FP32 | eager FP16 | eager | TRT FP32 | TRT FP16 | **TensorRT** |
+|---|---|---|---|---|---|---|
+| FireCNN | 0.717 | 0.828 | 0.87× | 0.279 | 0.129 | **2.17×** |
+| MobileNetV3-S | 5.692 | 6.482 | 0.88× | 0.757 | 0.659 | **1.15×** |
+| MobileNetV3-S robust | 5.813 | 6.513 | 0.89× | 0.718 | 0.670 | **1.07×** |
+| YOLO26n | 16.620 | 19.513 | 0.85× | 3.222 | 2.257 | **1.43×** |
+| U-Net | 4.879 | 3.898 | 1.25× | 3.145 | 1.218 | **2.58×** |
+
+Under **eager PyTorch** FP16 is slower for four of five models. Under
+**TensorRT, on the same card, FP16 is faster for all five.** So the penalty is a
+property of eager execution, not of the hardware.
+
+An earlier version of this section — and of §2.11 — framed this as a hardware
+difference (FP16 hurts on the RTX 3060, helps on Orin Nano). That comparison was
+confounded: the desktop numbers were eager PyTorch and the Jetson numbers were
+TensorRT. The correct claim is narrower and more useful:
+
+> Precision must be chosen together with the runtime. Under a compiling runtime
+> FP16 wins on both GPUs; the penalty appears only under eager execution, where
+> per-kernel conversion overhead exceeds the arithmetic saving for
+> launch-bound models.
+
+This unifies rather than weakens the story: the FP16 result and the
+FLOPs-inversion result (§2.3) now share one cause — launch-bound execution — instead
+of being two unrelated hardware quirks. The genuine hardware-dependence claim
+survives intact via INT8 (§2.5b), which really does flip sign between x86 and ARM
+with the same ONNX files and the same runtime.
 
 ### 2.5 The INT8 quantization in this project is essentially a no-op
 
@@ -185,7 +219,7 @@ quantizes convolutions.
 | FireCNN | 1.49 MB | **0.39 MB** | 3.79× | 2.34 → 1.99 ms | 1.17× |
 | MobileNetV3-S | 4.12 MB | **1.37 MB** | 3.00× | 0.96 → 1.34 ms | **0.72× (slower)** |
 | MobileNetV3-S robust | 4.12 MB | **1.37 MB** | 3.00× | 1.05 → 1.19 ms | **0.88× (slower)** |
-| YOLO26n | 9.66 MB | **3.11 MB** | 3.11× | 22.77 → 16.46 ms | 1.40× |
+| YOLO26n | 9.66 MB | **3.11 MB** | 3.11× | 22.77 → 16.46 ms | 1.38× |
 | U-Net | 29.94 MB | **7.57 MB** | 3.95× | 69.43 → 32.28 ms | **2.15×** |
 
 **Accuracy: the cost is entirely architecture-dependent** (binary macro-F1 on the
@@ -267,6 +301,21 @@ only on the development machine would therefore have produced exactly the wrong
 deployment recommendation — a concrete argument for why edge claims need edge
 measurements.
 
+> **Which YOLO artifact.** Two INT8 detectors exist and they are not the same
+> file. The row above is the standard export chain
+> (`jetson/models/iteration4.onnx` 9.66 MB → `iteration4_int8.onnx` 3.11 MB,
+> 3.11×). The accuracy figure in the table below and the ARM latency in
+> `results/arm_int8.csv` come from the **Ultralytics** chain
+> (`best.onnx` 9.35 MB → `iteration4_ultra_int8.onnx` 2.95 MB, 3.17×), because
+> Ultralytics binds its input by name and only that export can be scored with
+> its own pre/post-processing. `results/arm_int8.csv` currently pairs the
+> standard-chain FP32 size and latency with the Ultralytics-chain INT8 ones, so
+> its YOLO compression ratio (3.27×) and speedup (1.86×) compare across chains.
+> Both graphs are the same trained network, but they are not byte-identical, and
+> the Jetson has been returned so the matching FP32 ARM measurement cannot be
+> taken. Treat the YOLO ARM speedup as approximate and state the chain wherever
+> a YOLO INT8 number is quoted.
+
 QAT remains undone; it would likely recover MobileNetV3 and YOLO26n, and is the
 natural follow-up if a deployment genuinely needs INT8 for those architectures.
 
@@ -327,33 +376,49 @@ actually lower than iteration 2's (88.77 vs 89.16), which looked like evidence
 against. Measured over 8 corruptions × 3 severities on the test split
 (`results/robustness.csv`, `results/figures/robustness_curves.png`):
 
-| Condition group | it. 2 mean acc | it. 3 mean acc | it. 2 mean drop | it. 3 mean drop |
-|---|---|---|---|---|
-| Clean | 0.8946 | 0.8955 | — | — |
-| Corruptions **similar** to its training augmentation | 0.8510 | 0.8575 | 0.0436 | 0.0380 |
-| Corruptions it **never trained on** | 0.8179 | **0.8574** | 0.0767 | **0.0380** |
+Measured across **5 seeded checkpoints per method** (`results/robustness.csv`,
+`results/tables/robustness_summary.md`, per-seed values in
+`robustness_per_seed.md`):
+
+| Condition group | it. 2 mean drop | it. 3 mean drop | Welch p |
+|---|---|---|---|
+| Clean | — | — | — |
+| Corruptions **similar** to its training augmentation | 0.0458 ± 0.0051 | 0.0397 ± 0.0012 | 0.056 |
+| Corruptions it **never trained on** | **0.0718 ± 0.0106** | **0.0387 ± 0.0015** | **0.0019** |
+
+Clean accuracy: iteration 2 0.8886, iteration 3 0.8908.
 
 Two things make this a good result rather than a trivial one:
 
-1. **Iteration 3's advantage is largest on corruptions it never saw.** Per
-   corruption, its edge is +0.05 on defocus blur, +0.04 on Gaussian noise, +0.03
-   on JPEG artifacts and +0.03 on motion blur — none of which appear in its
-   Albumentations pipeline. On the fog/brightness family it actually trained on,
-   the advantage is smaller (+0.01 to +0.02). So this is genuine generalization,
-   not memorisation of the specific augmentations.
-2. **Its degradation is identical on seen and unseen corruptions (0.0380 both),
-   while iteration 2's nearly doubles (0.0436 → 0.0767).** Robust training did
-   not just add coverage; it flattened the model's sensitivity to distribution
-   shift in general.
+1. **The advantage is significant only on corruptions it never saw.** On unseen
+   corruptions the gap is 0.0331 (p = 0.0019); on the fog/brightness family it
+   actually trained on, it is 0.0061 and only marginal (p = 0.056). That is the
+   right shape for a generalization claim rather than memorisation of the
+   specific augmentations, and it is a cleaner separation than the single-run
+   data showed.
+2. **Its degradation is nearly identical on seen and unseen corruptions**
+   (0.0397 vs 0.0387), while iteration 2's rises by more than half
+   (0.0458 → 0.0718). Robust training did not just add coverage; it flattened
+   sensitivity to distribution shift in general.
+3. **Iteration 3 is also far more consistent**: its across-seed standard
+   deviation on unseen corruptions is 0.0015 against iteration 2's 0.0106, a
+   factor of 7. The same stability advantage appears in clean accuracy (§2.7).
 
 And it is free: iterations 2 and 3 are the same architecture with the same
 parameter count, measured at 4.90 ms and 4.85 ms CPU respectively — identical
-within measurement noise. **Robust augmentation halves accuracy degradation
-under unseen corruption at zero inference cost.** That sentence is a thesis
-contribution, and until now the project had no evidence for any version of it.
+within measurement noise.
 
-One honest caveat: on `brightness_down` iteration 3 is *worse* (drop 0.0334 vs
-0.0231). Worth a sentence rather than a silent omission.
+> **Robust augmentation reduces accuracy degradation under unseen corruption by
+> 46% (0.0718 → 0.0387, a factor of 1.86) at zero inference cost.**
+
+**Note the wording.** An earlier version of this claim said "halves", taken from
+single unreplicated checkpoints where the ratio was 2.02× (0.0767 / 0.0380). On
+five seeds per method the ratio is **1.86×**, because iteration 2's single run
+happened to be slightly worse than its seeded mean (0.0767 vs 0.0718 ± 0.0106)
+while iteration 3 barely moved (0.0380 vs 0.0387 ± 0.0015). "Halves" overstates
+it; "reduces by almost half" or the factor itself is accurate. The claim is now
+*more* secure than before — p = 0.0019 rather than a single-run difference — but
+the headline number is smaller.
 
 ### 2.9 Failure analysis: the dominant error is smoke-vs-background
 
@@ -431,19 +496,19 @@ across the entire matrix is YOLO26n at 15W (9.04 ms, 111 FPS). The original
 and the detector needed "hardware NPU accelerators" — both understated the
 hardware substantially.
 
-### FP16 is a win on Jetson and a loss on the desktop
+### FP16 under TensorRT wins on both GPUs
 
-| Model | RTX 3060 FP32→FP16 | Jetson FP32→FP16 |
+| Model | RTX 3060 (TensorRT) | Jetson (TensorRT) |
 |---|---|---|
-| FireCNN | **+15% slower** | −57% faster |
-| MobileNetV3-S | **+14% slower** | −26% faster |
-| YOLO26n | **+17% slower** | −35% faster |
-| U-Net | −20% faster | −63% faster |
+| FireCNN | −54% faster | −57% faster |
+| MobileNetV3-S | −13% faster | −26% faster |
+| YOLO26n | −30% faster | −35% faster |
+| U-Net | −61% faster | −63% faster |
 
-On the RTX 3060 only the compute-bound U-Net benefited (§2.4); on Orin Nano every
-model does. "Use FP16 on the edge" turns out to be true *on the edge* and false on
-the desktop GPU tested here — the recommendation is hardware-specific, and this
-project can now demonstrate that rather than assert it.
+Both columns are TensorRT, so this is a like-for-like comparison and FP16 helps
+on both. An earlier version of this section contrasted eager-PyTorch numbers on
+the desktop against TensorRT numbers on the Jetson and concluded that FP16 was
+hardware-dependent. It is not; it is runtime-dependent. See §2.4.
 
 ### Power modes are not a linear ladder
 
@@ -573,9 +638,11 @@ headroom rather than efficiency.
 | YOLO26n | 82.90 mJ @ 15W | 0.9689 | 85.6 |
 | U-Net | 75.25 mJ @ 15W | 0.6999 | 107.5 |
 
-**YOLO26n costs 10.2× the energy of MobileNetV3-robust to buy 1.8 points of
-macro-F1.** For a mains-powered installation that is free; for a battery or solar
-node it is close to indefensible. This is the concrete deployment recommendation
+**YOLO26n costs 10.2× the energy of MobileNetV3-robust (82.90 vs 8.15 mJ) to buy
+2.15 points of macro-F1** (0.9692 vs 0.9477 on seeded checkpoints). For a
+mains-powered installation that is free; for a battery or solar node it is close
+to indefensible. An earlier version said 1.8 points, computed from the
+unreplicated single checkpoints (0.9689 − 0.9510). This is the concrete deployment recommendation
 the thesis was set up to produce, and it now rests on measurement rather than
 intuition. Figures: `results/figures/accuracy_vs_energy.png`,
 `results/figures/jetson_energy_tradeoff.png`.

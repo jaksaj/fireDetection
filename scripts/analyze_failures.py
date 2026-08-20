@@ -51,6 +51,7 @@ from src.utils import configure_logging, resolve_device
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 from evaluate_common import (  # noqa: E402
     build_eval_transform,
+    checkpoint_for,
     ground_truth_labels,
     list_test_images,
     load_state,
@@ -162,6 +163,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--top-k", type=int, default=12, help="Images per montage.")
     parser.add_argument("--device", default=None)
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="Analyse the checkpoint from this seeded run. Omit to use the "
+             "original single-run checkpoint, which for iteration 1 does not "
+             "replicate; prefer a seed for anything the thesis cites.",
+    )
     return parser.parse_args()
 
 
@@ -173,9 +180,11 @@ def main() -> None:
     from src.model import MobileNetV3FireClassifier
 
     model = MobileNetV3FireClassifier(num_classes=4, pretrained=False, device=device)
-    if not load_state(model, CHECKPOINTS / args.method / "best_model.pt", device):
-        logger.error("No checkpoint for %s", args.method)
+    checkpoint_path = checkpoint_for(args.method, args.seed)
+    if not load_state(model, checkpoint_path, device):
+        logger.error("No checkpoint for %s at %s", args.method, checkpoint_path)
         return
+    logger.info("Analysing checkpoint: %s", checkpoint_path)
 
     image_paths = list_test_images(args.split)
     if args.limit:
@@ -201,6 +210,8 @@ def main() -> None:
             "loss": float(losses[index]),
             "confidence": float(probabilities[index].max()),
             "correct": int(correct[index]),
+            "seed": args.seed if args.seed is not None else "",
+            "checkpoint": str(checkpoint_path),
         }
         for class_index, name in enumerate(MULTICLASS_CLASS_NAMES):
             row[f"p_{name}"] = float(probabilities[index][class_index])
@@ -225,7 +236,7 @@ def main() -> None:
                 for i in ranked
             ],
             output_dir / f"worst_{class_name}.png",
-            f"{args.method}: highest-loss errors on true class '{class_name}' "
+            f"{args.method} (seed {args.seed}): highest-loss errors on true class '{class_name}' "
             f"({int(mask.sum())} errors of {int((truth == class_index).sum())} images)",
         )
 
@@ -244,7 +255,7 @@ def main() -> None:
             [image_paths[i] for i in ranked],
             [f"conf {probabilities[i].max():.2f}" for i in ranked],
             output_dir / f"confusion_{true_name}_as_{pred_name}.png",
-            f"{args.method}: '{true_name}' predicted as '{pred_name}' "
+            f"{args.method} (seed {args.seed}): '{true_name}' predicted as '{pred_name}' "
             f"({len(indices)} cases) — most confident first",
         )
 

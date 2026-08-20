@@ -331,6 +331,18 @@ def pareto_outputs(common: pd.DataFrame, benchmarks: pd.DataFrame) -> None:
 
     if plotted:
         frame = pd.DataFrame(plotted).sort_values(["method", "device"])
+        # This table is quoted directly by both the thesis and the paper. A row
+        # without backend/precision is unreadable, because the same
+        # (model, device) cell differs by up to 5x between eager PyTorch and
+        # TensorRT. Refuse to emit an ambiguous table rather than let the two
+        # documents silently quote different configurations.
+        missing = [c for c in REQUIRED_PARETO_COLUMNS if c not in frame.columns]
+        if missing:
+            raise RuntimeError(
+                "pareto_points is missing required provenance columns: "
+                + str(missing)
+                + ". Refusing to emit a table whose configuration is ambiguous."
+            )
         save_table(frame, "pareto_points", "Accuracy vs cost, per method and device")
 
 
@@ -488,6 +500,220 @@ def energy_outputs(energy: pd.DataFrame, common: pd.DataFrame | None) -> None:
                    "accuracy_vs_energy", "Accuracy per millijoule, cheapest power mode")
 
 
+
+# ---------------------------------------------------------------------------
+# Tables the Results chapter cites directly
+# ---------------------------------------------------------------------------
+
+REQUIRED_PARETO_COLUMNS = ["backend", "precision", "device"]
+
+
+def precision_outputs(benchmarks: pd.DataFrame) -> None:
+    """
+    FP32 vs FP16 on the RTX 3060, under BOTH eager PyTorch and TensorRT.
+
+    This is the evidence that the FP16 penalty belongs to the runtime rather than
+    to the card: under eager execution FP16 is slower for four of five models,
+    and under TensorRT it is faster for all five.
+    """
+    batch1 = benchmarks[(benchmarks["batch_size"] == 1) & (benchmarks["bench_device"] == "cuda")]
+    rows = []
+    for key, style in METHOD_STYLE.items():
+        row = {"model": key, "label": style["label"]}
+        seen = False
+        for backend, tag in (("pytorch", "eager"), ("tensorrt[python-api]", "trt")):
+            for precision in ("fp32", "fp16"):
+                subset = batch1[
+                    (batch1["model_key"] == key)
+                    & (batch1["backend"] == backend)
+                    & (batch1["precision"] == precision)
+                ]
+                row[tag + "_" + precision + "_ms"] = (
+                    float(subset["latency_ms_median"].iloc[-1]) if len(subset) else float("nan")
+                )
+            f32 = row[tag + "_fp32_ms"]
+            f16 = row[tag + "_fp16_ms"]
+            row[tag + "_fp16_speedup"] = f32 / f16 if (f16 == f16 and f16) else float("nan")
+            seen = seen or (f16 == f16)
+        if seen:
+            rows.append(row)
+    if rows:
+        save_table(
+            pd.DataFrame(rows),
+            "desktop_precision",
+            "RTX 3060: FP32 vs FP16 under eager PyTorch and TensorRT (batch 1)",
+        )
+
+
+def int8_outputs(benchmarks: pd.DataFrame) -> None:
+    """INT8 size/latency on x86, ARM-vs-x86 speedup, and the INT8 accuracy cost."""
+    batch1 = benchmarks[benchmarks["batch_size"] == 1]
+    int8_dir = RESULTS_DIR / "int8_models"
+    onnx_dir = RESULTS_DIR.parent / "jetson" / "models"
+
+    rows = []
+    for key, style in METHOD_STYLE.items():
+        fp32_file = onnx_dir / (key + ".onnx")
+        int8_file = int8_dir / (key + "_int8.onnx")
+        if not fp32_file.exists() or not int8_file.exists():
+            continue
+        fp32_mb = fp32_file.stat().st_size / (1024 * 1024)
+        int8_mb = int8_file.stat().st_size / (1024 * 1024)
+
+        def latency(precision, backend=None):
+            subset = batch1[(batch1["model_key"] == key) & (batch1["precision"] == precision)]
+            if backend:
+                subset = subset[subset["backend"] == backend]
+            subset = subset[subset["bench_device"] == "cpu"]
+            return float(subset["latency_ms_median"].iloc[-1]) if len(subset) else float("nan")
+
+        f32_ms = latency("fp32", "onnxruntime[CPU]")
+        i8_ms = latency("int8-static")
+        rows.append(
+            {
+                "model": key,
+                "label": style["label"],
+                "fp32_onnx_mb": fp32_mb,
+                "int8_onnx_mb": int8_mb,
+                "compression": fp32_mb / int8_mb if int8_mb else float("nan"),
+                "x86_fp32_ms": f32_ms,
+                "x86_int8_ms": i8_ms,
+                "x86_speedup": f32_ms / i8_ms if (i8_ms == i8_ms and i8_ms) else float("nan"),
+                "artifact": int8_file.name,
+            }
+        )
+    if rows:
+        save_table(
+            pd.DataFrame(rows),
+            "int8_size_latency",
+            "Static INT8: artifact size and x86 CPU latency",
+        )
+
+    arm_path = RESULTS_DIR / "arm_int8.csv"
+    if arm_path.exists() and rows:
+        arm = pd.read_csv(arm_path)
+        pivot = arm.pivot_table(index="model", columns="precision", values="median_ms")
+        combined = []
+        for row in rows:
+            key = row["model"]
+            if key not in pivot.index:
+                continue
+            arm_f32 = float(pivot.loc[key, "fp32"])
+            arm_i8 = float(pivot.loc[key, "int8"])
+            combined.append(
+                {
+                    "model": key,
+                    "label": row["label"],
+                    "arm_fp32_ms": arm_f32,
+                    "arm_int8_ms": arm_i8,
+                    "arm_speedup": arm_f32 / arm_i8 if arm_i8 else float("nan"),
+                    "x86_fp32_ms": row["x86_fp32_ms"],
+                    "x86_int8_ms": row["x86_int8_ms"],
+                    "x86_speedup": row["x86_speedup"],
+                }
+            )
+        if combined:
+            save_table(
+                pd.DataFrame(combined),
+                "int8_arm_vs_x86",
+                "INT8 speedup on ARM (Cortex-A78AE) vs x86 (Ryzen), same ONNX and runtime",
+            )
+
+    frames = []
+    sources = (
+        ("common_eval_int8.csv", "MinMax"),
+        ("common_eval_int8pct.csv", "Percentile"),
+        ("common_eval_int8_detseg.csv", "MinMax"),
+    )
+    for name, calibration in sources:
+        path = RESULTS_DIR / name
+        if not path.exists():
+            continue
+        frame = pd.read_csv(path)
+        frame = frame[frame["axis"] == "binary"].copy()
+        frame["calibration"] = calibration
+        frame["is_fp32"] = frame["notes"].astype(str).str.contains("FP32", case=False)
+        frames.append(frame)
+    if not frames:
+        return
+
+    allf = pd.concat(frames, ignore_index=True)
+
+    # FP32 baselines describe the ORIGINAL checkpoints. That is the only basis on
+    # which an INT8 delta is meaningful, because the quantized model is derived
+    # from that exact checkpoint; comparing it against a seeded mean it was not
+    # derived from would confound quantization loss with seed variation.
+    fp32 = {}
+    for _, record in allf[allf["is_fp32"]].iterrows():
+        fp32[record["method"]] = float(record["f1_macro"])
+    original = RESULTS_DIR / "common_eval.csv"
+    if original.exists():
+        orig = pd.read_csv(original)
+        orig = orig[orig["axis"] == "binary"]
+        for method, group in orig.groupby("method"):
+            fp32.setdefault(method, float(group["f1_macro"].max()))
+
+    acc_rows = []
+    for method, group in allf[~allf["is_fp32"]].groupby("method"):
+        best = group.loc[group["f1_macro"].idxmax()]
+        base = fp32.get(method, float("nan"))
+        acc_rows.append(
+            {
+                "model": method,
+                "label": METHOD_STYLE.get(method, {}).get("label", method),
+                "fp32_macro_f1": base,
+                "int8_macro_f1": float(best["f1_macro"]),
+                "delta": float(best["f1_macro"]) - base,
+                "calibration": best["calibration"],
+                "checkpoint_basis": "original single run (not seeded)",
+            }
+        )
+    if acc_rows:
+        save_table(
+            pd.DataFrame(acc_rows).sort_values("delta"),
+            "int8_accuracy",
+            "Static INT8 accuracy cost. FP32 baseline is the same original "
+            "checkpoint the INT8 model was quantized from, not the seeded mean.",
+        )
+
+
+def detection_per_class_outputs(metrics: pd.DataFrame) -> None:
+    """Per-class detection AP, mean +/- std across the detector's seeds."""
+    seeded = metrics[(metrics["method"] == "iteration4") & metrics["seed"].notna()]
+    wanted = {
+        "test/mAP50/smoke": ("smoke", "mAP50"),
+        "test/mAP50-95/smoke": ("smoke", "mAP50-95"),
+        "test/mAP50/fire": ("fire", "mAP50"),
+        "test/mAP50-95/fire": ("fire", "mAP50-95"),
+    }
+    rows = []
+    for metric, (klass, name) in wanted.items():
+        values = seeded[seeded["metric"] == metric]["value"]
+        if values.empty:
+            continue
+        rows.append(
+            {
+                "class": klass,
+                "metric": name,
+                "mean": values.mean(),
+                "std": values.std(ddof=1),
+                "min": values.min(),
+                "max": values.max(),
+                "n_seeds": len(values),
+            }
+        )
+    if rows:
+        frame = pd.DataFrame(rows).sort_values(["metric", "class"])
+        frame["mean_pm_std"] = frame.apply(
+            lambda r: "%.4f +/- %.4f" % (r["mean"], r["std"]), axis=1
+        )
+        save_table(
+            frame,
+            "detection_per_class",
+            "Per-class detection AP on the test split, mean +/- std across seeds",
+        )
+
+
 def common_eval_outputs(common: pd.DataFrame) -> None:
     for axis_name in common["axis"].unique():
         subset = common[common["axis"] == axis_name].copy()
@@ -535,20 +761,51 @@ def common_eval_outputs(common: pd.DataFrame) -> None:
 
 
 def robustness_outputs(robustness: pd.DataFrame) -> None:
-    summary = (
-        robustness.groupby(["method", "group"])
-        .agg(
-            mean_accuracy=("accuracy", "mean"),
-            mean_drop=("accuracy_drop", "mean"),
-            mean_relative_drop_pct=("relative_drop_pct", "mean"),
-            n=("accuracy", "size"),
+    has_seeds = "seed" in robustness.columns and robustness["seed"].notna().any()
+
+    if has_seeds:
+        # Aggregate within a seed first, then across seeds. Pooling every row
+        # directly would treat 25 corruption conditions as independent samples
+        # and understate the interval that actually matters, which is
+        # seed-to-seed.
+        per_seed = (
+            robustness.groupby(["method", "group", "seed"])
+            .agg(mean_drop=("accuracy_drop", "mean"), mean_accuracy=("accuracy", "mean"))
+            .reset_index()
         )
-        .reset_index()
-    )
+        summary = (
+            per_seed.groupby(["method", "group"])
+            .agg(
+                mean_accuracy=("mean_accuracy", "mean"),
+                mean_drop=("mean_drop", "mean"),
+                drop_std=("mean_drop", "std"),
+                n_seeds=("mean_drop", "size"),
+            )
+            .reset_index()
+        )
+        summary["drop_pm_std"] = summary.apply(
+            lambda r: "%.4f +/- %.4f" % (r["mean_drop"], r["drop_std"])
+            if r["n_seeds"] > 1 else "%.4f" % r["mean_drop"],
+            axis=1,
+        )
+        save_table(per_seed, "robustness_per_seed",
+                   "Mean accuracy drop per corruption group, per seeded checkpoint")
+    else:
+        summary = (
+            robustness.groupby(["method", "group"])
+            .agg(
+                mean_accuracy=("accuracy", "mean"),
+                mean_drop=("accuracy_drop", "mean"),
+                mean_relative_drop_pct=("relative_drop_pct", "mean"),
+                n=("accuracy", "size"),
+            )
+            .reset_index()
+        )
     save_table(summary, "robustness_summary", "Accuracy under corruption, grouped")
 
     pivot = robustness.pivot_table(
-        index=["corruption", "severity"], columns="method", values="accuracy"
+        index=["corruption", "severity"], columns="method", values="accuracy",
+        aggfunc="mean",
     ).reset_index()
     save_table(pivot, "robustness_per_corruption", "Accuracy by corruption and severity")
 
@@ -764,6 +1021,8 @@ def main() -> None:
     if benchmarks is not None:
         benchmark_outputs(benchmarks)
         jetson_outputs(benchmarks)
+        precision_outputs(benchmarks)
+        int8_outputs(benchmarks)
     if common is not None:
         common_eval_outputs(common)
     if common is not None and benchmarks is not None:
@@ -772,6 +1031,7 @@ def main() -> None:
         robustness_outputs(robustness)
     if metrics is not None:
         seed_outputs(metrics)
+        detection_per_class_outputs(metrics)
     if dataset is not None:
         dataset_outputs(dataset)
     if energy is not None:
