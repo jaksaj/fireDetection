@@ -1,6 +1,6 @@
 # Thesis Work — Status and Findings
 
-**Updated:** 2026-08-20 (rev 4)
+**Updated:** 2026-08-20 (rev 5)
 **Companion documents:** [thesis_plan.md](thesis_plan.md) (the plan), [thesis_readiness_report.md](thesis_readiness_report.md) (the original audit)
 
 This is the running record of what has been built, what has been measured, and
@@ -71,6 +71,28 @@ fastest configuration per hardware class):
 > **The thesis and the companion paper must not quote different tables for the
 > same claim.** Cite this one for the per-runtime view and `pareto_points.md` for
 > the best-case view, and say which in the caption.
+
+**Operating points.** The thresholds used throughout — detector confidence 0.10,
+mask-area fraction 0.02 — are justified by
+`results/figures/threshold_sensitivity.png` and
+`results/tables/threshold_sensitivity.md`, now rebuilt from seeded checkpoints
+(iteration 4 seeds 42–44, iteration 5 seeds 42–46) with error bars.
+
+Two things that figure shows, which its previous unseeded version did not:
+
+- **The detector's optimum is unchanged at 0.10** (0.9692 ± 0.0018), and it
+  degrades sharply above 0.40 — 0.7933 ± 0.0072 at 0.70.
+- **The segmentation optimum is not sharply determined.** On seeded checkpoints
+  the best point is 0.01 (0.7138 ± 0.0252) rather than the 0.02 (0.7117 ±
+  0.0108) chosen from the unseeded sweep, but the gap is 0.0021 — an order of
+  magnitude inside the seed standard deviation. The 0.02 operating point used
+  elsewhere is therefore still defensible; it is simply not uniquely optimal, and
+  the curve is flat between 0.005 and 0.02. Say "flat over roughly 0.005–0.02"
+  rather than claiming a single best threshold.
+
+The unseeded version of this figure also understated iteration 5 by up to
+**0.062 macro-F1** at low thresholds, which is why it was rebuilt rather than
+relabelled.
 
 Latency comes from a single trained checkpoint per method, since it depends on
 architecture rather than on learned weights.
