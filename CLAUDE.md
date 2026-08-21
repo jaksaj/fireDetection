@@ -56,6 +56,14 @@ python scripts/run_benchmarks.py [--batch-sizes 1 4 8 16] [--quick]   # -> resul
 # The common-task comparison: every paradigm collapsed to image-level presence
 # on the same test images, so accuracy is comparable across methods.
 python scripts/evaluate_common.py [--sweep]         # -> results/common_eval.csv
+#   --onnx-dir scores quantized ONNX artifacts, but covers the CLASSIFIERS ONLY;
+#   it skips iteration 4 and 5 by design. Use evaluate_onnx_detseg.py for those.
+
+# Quantized detector/segmenter accuracy. Always pass the operating point
+# explicitly -- the FP32 control and the INT8 model must be scored at the same
+# threshold or part of the reported drop is a threshold artifact.
+python scripts/evaluate_onnx_detseg.py --onnx <model.onnx> --method iteration4 --conf 0.10
+python scripts/evaluate_onnx_detseg.py --onnx <model.onnx> --method iteration5 --mask-area 0.02
 
 # Robustness under a fixed corruption suite (inference only, no retraining)
 python scripts/evaluate_robustness.py --seeds 42 43 44 45 46   # -> results/robustness.csv

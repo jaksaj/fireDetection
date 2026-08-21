@@ -122,8 +122,30 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--calibrate-method", default="MinMax",
                         choices=["MinMax", "Percentile", "Entropy"],
                         help="MinMax is fastest but sensitive to activation outliers, "
-                             "which is exactly what breaks depthwise/hard-swish networks.")
+                             "which is exactly what breaks depthwise/hard-swish networks. "
+                             "NOTE: 'Entropy' is a no-op here -- see the warning emitted "
+                             "when it is selected.")
+    parser.add_argument(
+        "--symmetric", choices=["default", "true", "false"], default="default",
+        help="Force symmetric or asymmetric activation ranges. The default differs "
+             "per method (MinMax and Entropy asymmetric, Percentile symmetric), so a "
+             "plain MinMax-vs-Percentile comparison changes two things at once. Pin "
+             "this to attribute the difference to outlier clipping alone.",
+    )
+    parser.add_argument(
+        "--percentile", type=float, default=None,
+        help="Clipping percentile for --calibrate-method Percentile (ORT default "
+             "99.999). Lower clips more aggressively.",
+    )
     parser.add_argument("--suffix", default="_int8", help="Output filename suffix.")
+    parser.add_argument(
+        "--source-dir", type=Path, default=MODELS_DIR,
+        help="Directory holding the FP32 <model>.onnx to quantize. Override it to "
+             "quantize an export other than the Jetson bundle's -- the detector's "
+             "INT8 artifact was built from the Ultralytics export, not this "
+             "project's, and comparing calibration methods across two different "
+             "exports would confound the very thing being measured.",
+    )
     return parser.parse_args()
 
 
@@ -140,6 +162,28 @@ def main() -> None:
         logger.error("onnxruntime quantization tools unavailable: %s", exc)
         return
 
+    if args.calibrate_method == "Entropy":
+        # ORT reaches EntropyCalibrater with num_bins=128 and num_quantized_bins=128.
+        # get_entropy_threshold then searches range(num_quantized_bins // 2,
+        # num_bins // 2 + 1) -- range(64, 65) -- a single candidate covering the full
+        # histogram, i.e. exactly the min/max range. quantize_static does not forward
+        # num_bins (its calib_extra_options_keys list is symmetric, moving_average,
+        # averaging_constant, max_intermediate_outputs, percentile), so there is no
+        # way to widen the histogram through this API. Verified empirically: Entropy
+        # and MinMax produced byte-identical ONNX files for iteration4.
+        logger.warning(
+            "Entropy calibration via quantize_static is DEGENERATE: with ORT's "
+            "num_bins == num_quantized_bins == 128 the KL search has one candidate, "
+            "the full range, so the result is identical to MinMax. Producing it "
+            "anyway, but do not report it as a distinct calibration method."
+        )
+
+    extra_options: dict = {}
+    if args.symmetric != "default":
+        extra_options["CalibTensorRangeSymmetric"] = args.symmetric == "true"
+    if args.percentile is not None:
+        extra_options["CalibPercentile"] = args.percentile
+
     INT8_DIR.mkdir(parents=True, exist_ok=True)
     images = calibration_images(args.calibration_images)
     logger.info("Calibration set: %d images from the train split", len(images))
@@ -149,7 +193,7 @@ def main() -> None:
 
     for model_key in args.models:
         name, size = SPECS[model_key]
-        source = MODELS_DIR / f"{model_key}.onnx"
+        source = args.source_dir / f"{model_key}.onnx"
         if not source.exists():
             logger.warning("Missing %s — run scripts/export_for_jetson.py first.", source)
             continue
@@ -174,6 +218,7 @@ def main() -> None:
                 weight_type=QuantType.QInt8,
                 calibrate_method=getattr(CalibrationMethod, args.calibrate_method),
                 per_channel=True,
+                extra_options=extra_options,
             )
         except Exception as exc:  # noqa: BLE001 - one model must not stop the run
             logger.error("Quantization failed for %s: %s", model_key, exc)

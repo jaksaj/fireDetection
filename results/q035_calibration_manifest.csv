@@ -1,0 +1,17 @@
+file,md5,size_bytes,mtime_utc,source_export,calibrate_method,calibration_images,percentile,symmetric,note
+iteration4_ultra.onnx,8b64d834f6782767bcc9375bf159536e,9806004,2026-08-21T12:58:30,ultralytics export (regenerated 2026-08-21),-,-,-,-,FP32 control
+iteration4_ultra_int8.onnx,977fb0421b0d628cfcd29f2d6b03ae1b,3098349,2026-08-18T22:33:23,ultralytics export (original 2026-08-19),MinMax,200,default,default,committed artifact behind the -0.5433 claim
+iteration4_ultra_int8repro.onnx,aaac9f140b18b89cd20cb756c8af8f69,3099230,2026-08-21T12:59:14,ultralytics export (regenerated),MinMax,200,default,default,reproduction of the above
+iteration4_ultra_int8mm32.onnx,18440a1652efd4db8b672165679a2c49,3099227,2026-08-21T13:10:08,ultralytics export (regenerated),MinMax,32,default,default,matched control for Percentile@32
+iteration4_ultra_int8ent.onnx,18440a1652efd4db8b672165679a2c49,3099227,2026-08-21T13:10:01,ultralytics export (regenerated),Entropy,32,default,default,byte-identical to MinMax@32: degenerate
+iteration4_ultra_int8pct.onnx,336ab90eb332a301c55ac0d6f84c91b1,3099244,2026-08-21T13:09:41,ultralytics export (regenerated),Percentile,32,99.999,default,Q-035 primary test
+iteration4_ultra_int8pct99p9.onnx,219917bce96f68d9c4443978bb8fdeab,3099255,2026-08-21T13:48:05,ultralytics export (regenerated),Percentile,32,99.9,default,aggressive clipping
+iteration4_ultra_int8pct99p0.onnx,8d6ef0b47180f4f3b41d1b8ad44c8955,3099259,2026-08-21T13:48:26,ultralytics export (regenerated),Percentile,32,99.0,default,very aggressive clipping
+iteration4_ultra_int8mmsym.onnx,cff32b058fc8a2f589a7ee8c609c4b15,3099437,2026-08-21T13:48:33,ultralytics export (regenerated),MinMax,32,-,true,isolates symmetry from clipping
+iteration4_int8.onnx,e0d6abc6208f3c60eb0e1cfde155e7e1,3261472,2026-08-18T22:16:16,project export (jetson/models),MinMax,200,default,default,"second, independent export"
+iteration5_int8.onnx,b14ad519ba9b663bc58c3dbab7d21907,7941163,2026-08-18T22:16:43,project export (jetson/models),MinMax,200,default,default,committed artifact behind the -0.0322 claim
+iteration5_int8pct.onnx,20275b951e76428f7092ab8ad27d3534,7941163,2026-08-21T13:16:38,project export (jetson/models),Percentile,200,99.999,default,Q-035 primary test
+iteration2_int8.onnx,d8fed4b3d448de8ae09875f1ae4fba24,1441015,2026-08-18T22:15:54,project export (jetson/models),MinMax,200,default,default,pre-existing
+iteration2_int8pct.onnx,e85f911f6cab7792e1db2dfafb30c46a,1441031,2026-08-18T22:21:52,project export (jetson/models),Percentile,200,99.999,default,pre-existing
+iteration3_int8.onnx,4ba1b044bcf60642d340b9bd79194621,1441017,2026-08-18T22:15:57,project export (jetson/models),MinMax,200,default,default,pre-existing
+iteration3_int8pct.onnx,badf61268b81471118c9c9b1882fb40e,1441023,2026-08-18T22:22:01,project export (jetson/models),Percentile,200,99.999,default,pre-existing
