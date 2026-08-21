@@ -133,6 +133,14 @@ def parse_args() -> argparse.Namespace:
              "this to attribute the difference to outlier clipping alone.",
     )
     parser.add_argument(
+        "--exclude-nodes-after", default=None,
+        help="Leave this node and every node after it in topological order in "
+             "FP32. Intended for a detector's output-assembly block: a Concat "
+             "that joins box coordinates to class scores forces both onto one "
+             "per-tensor scale, and the scale the boxes need annihilates "
+             "probabilities. See scripts/diagnose_int8_divergence.py.",
+    )
+    parser.add_argument(
         "--percentile", type=float, default=None,
         help="Clipping percentile for --calibrate-method Percentile (ORT default "
              "99.999). Lower clips more aggressively.",
@@ -210,6 +218,30 @@ def main() -> None:
                 str(prepared), providers=["CPUExecutionProvider"]
             ).get_inputs()[0].name
 
+            nodes_to_exclude: list[str] = []
+            if args.exclude_nodes_after:
+                import onnx as _onnx
+
+                nodes = _onnx.load(str(prepared)).graph.node
+                cut = next(
+                    (i for i, n in enumerate(nodes) if n.name == args.exclude_nodes_after),
+                    None,
+                )
+                if cut is None:
+                    logger.error(
+                        "Node %s not found in %s; refusing to quantize with an "
+                        "exclusion list that would silently be empty.",
+                        args.exclude_nodes_after, prepared.name,
+                    )
+                    continue
+                # The node list is topologically sorted, so "after" is positional.
+                nodes_to_exclude = [n.name for n in nodes[cut:] if n.name]
+                logger.info(
+                    "Excluding %d node(s) from %s onward (%s ... %s)",
+                    len(nodes_to_exclude), args.exclude_nodes_after,
+                    nodes_to_exclude[0], nodes_to_exclude[-1],
+                )
+
             reader = CalibrationReader(images, size, input_name)
             quantize_static(
                 str(prepared), str(target), reader,
@@ -219,6 +251,7 @@ def main() -> None:
                 calibrate_method=getattr(CalibrationMethod, args.calibrate_method),
                 per_channel=True,
                 extra_options=extra_options,
+                nodes_to_exclude=nodes_to_exclude,
             )
         except Exception as exc:  # noqa: BLE001 - one model must not stop the run
             logger.error("Quantization failed for %s: %s", model_key, exc)

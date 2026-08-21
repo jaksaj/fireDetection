@@ -15,3 +15,5 @@ iteration2_int8.onnx,d8fed4b3d448de8ae09875f1ae4fba24,1441015,2026-08-18T22:15:5
 iteration2_int8pct.onnx,e85f911f6cab7792e1db2dfafb30c46a,1441031,2026-08-18T22:21:52,project export (jetson/models),Percentile,200,99.999,default,pre-existing
 iteration3_int8.onnx,4ba1b044bcf60642d340b9bd79194621,1441017,2026-08-18T22:15:57,project export (jetson/models),MinMax,200,default,default,pre-existing
 iteration3_int8pct.onnx,badf61268b81471118c9c9b1882fb40e,1441023,2026-08-18T22:22:01,project export (jetson/models),Percentile,200,99.999,default,pre-existing
+iteration4_ultra_int8headfp32.onnx,399b3825a60c170c9eab4fb8796561da,3093776,2026-08-21T20:21:42,ultralytics export (regenerated),MinMax,200,default,default,"output-assembly block (/model.23/Concat_3 onward, 20 nodes) left FP32"
+iteration1_int8pct.onnx,b5011bed8628a8183a60a0bc77415bf0,411142,2026-08-21T20:17:56,project export (jetson/models),Percentile,200,99.999,default,closes the MinMax-only gap for iteration1

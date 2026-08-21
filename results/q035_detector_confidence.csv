@@ -7,3 +7,4 @@ iteration4_ultra_int8pct99p9.onnx,Percentile 99.9,32,200,0.0,0.0,0.0,0
 iteration4_ultra_int8pct99p0.onnx,Percentile 99.0,32,200,0.0,0.0,0.0,0
 iteration4_ultra_int8mmsym.onnx,MinMax symmetric,32,200,0.0,0.0,0.0,0
 iteration4_int8.onnx,MinMax (project export),200,200,0.0,0.0,0.0,0
+iteration4_ultra_int8headfp32.onnx,"MinMax, head excluded",200,200,0.072436,0.003261,0.83166,37
