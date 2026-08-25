@@ -59,6 +59,167 @@ METHOD_STYLE = {
 REALTIME_FPS = 25.0
 MONITORING_FPS = 10.0
 
+# ---------------------------------------------------------------------------
+# Language support (--lang en|hr)
+# ---------------------------------------------------------------------------
+#
+# LANG and FIGURES_DIR are module globals, set once in main() from --lang and
+# read by every function below. This keeps one plotting code path for both
+# languages -- the alternative, a forked hr copy of each figure function,
+# would drift the day someone edits one copy and not the other. Every
+# translation helper below is a no-op on the English path (T() returns its
+# input unchanged, apply_hr_axis() returns immediately), which is what keeps
+# the English PNGs byte-identical to before this file had a --lang flag.
+LANG = "en"
+
+# Croatian labels for METHOD_STYLE. Two of these correct labels that are wrong
+# even in English (iteration 5 is LightweightUNet, not "U-Net"; iteration 3 is
+# "MobileNetV3-S, robusna" everywhere else in the thesis). The English
+# METHOD_STYLE labels above are left exactly as they are -- changing them
+# would change the English figures, which this task must not do.
+METHOD_LABELS_HR = {
+    "iteration1": "FireCNN (binarna klasifikacija)",
+    "iteration2": "MobileNetV3-S (4 razreda)",
+    "iteration3": "MobileNetV3-S, robusna",
+    "iteration4": "YOLO26n (detekcija)",
+    "iteration5": "LightweightUNet (segmentacija)",
+}
+
+
+def method_label(key: str) -> str:
+    """Legend label for a method key, in the currently selected language."""
+    if LANG == "hr" and key in METHOD_LABELS_HR:
+        return METHOD_LABELS_HR[key]
+    return METHOD_STYLE.get(key, {}).get("label", key)
+
+
+# Exact-match static strings fixed in the user's terminology table, so the
+# figures agree with the thesis text word for word. Titles that interpolate a
+# value (n_seeds, a power-mode number) are composed with an explicit
+# LANG == "hr" branch at their call site instead of being forced through this
+# dict, since a dict lookup cannot match a string that does not exist until
+# after formatting.
+HR_LABELS = {
+    "Median latency (ms, batch=1)": "Medijan latencije (ms, veličina grupe 1)",
+    "Median inference latency (ms, batch=1, log scale)":
+        "Medijan latencije izvođenja (ms, veličina grupe 1, logaritamska skala)",
+    "Inference latency by device": "Latencija izvođenja po uređaju",
+    "lower is better": "manje je bolje",
+    "Batch size": "Veličina grupe",
+    "Throughput (images/s)": "Propusnost (slika/s)",
+    "Throughput vs batch size": "Propusnost u ovisnosti o veličini grupe",
+    "Macro-F1 on the common binary 'fire present' task":
+        "Mjera macro-F1 na binarnoj osi zajedničkog zadatka",
+    "Macro-F1 on the common binary task":
+        "Mjera macro-F1 na binarnoj osi zajedničkog zadatka",
+    "Accuracy vs inference cost across detection paradigms":
+        "Točnost u odnosu na cijenu izvođenja po paradigmama",
+    "Energy per inference (mJ)": "Energija po inferenciji (mJ)",
+    "Energy per inference (mJ, log scale) — Jetson GPU, TensorRT FP16":
+        "Energija po inferenciji (mJ, logaritamska skala) — rubni GPU, TensorRT FP16",
+    "Power mode": "Način napajanja",
+    "Accuracy vs energy: what each paradigm costs per frame":
+        "Točnost i energija: cijena po obrađenoj slici za svaku paradigmu",
+    "Operating threshold (detector confidence / mask-area fraction, log scale)":
+        "Radni prag (pouzdanost detektora / udio površine maske, logaritamska skala)",
+    "Severity": "Jačina",
+    "Accuracy": "Točnost",
+    "Accuracy degradation under corruption: standard vs robust training":
+        "Pad točnosti pod degradacijama: standardno naspram robusnog treniranja",
+    "Share of split (%)": "Udio podskupa (%)",
+    "Hardware class (red edge = Jetson)": "Hardverska razina (crveni rub = ploča Jetson)",
+    "Method": "Pristup",
+    "Desktop GPU (RTX 3060)": "Stolni GPU (RTX 3060)",
+    "Jetson GPU (TensorRT)": "Rubni GPU (TensorRT)",
+    "Jetson ARM CPU": "Rubni CPU (ARM)",
+    # Not in the user's table: the fourth CLASS_STYLE bucket ("Desktop x86
+    # CPU") has no given Croatian counterpart. Coined to match the parallel
+    # structure of the three that were given ("Stolni GPU (...)" /
+    # "Rubni CPU (ARM)"); flagged in the report rather than slipped in
+    # silently.
+    "Desktop x86 CPU": "Stolni CPU (x86)",
+    # Composite/multi-line titles not in the terminology table, translated
+    # whole because they combine several given fragments with static prose
+    # around them. Also flagged in the report.
+    "Median latency (ms)": "Medijan latencije (ms)",
+    "Energy rises with power mode\n(the fastest mode is the least efficient)":
+        "Energija raste s načinom napajanja\n(najbrži način nije najučinkovitiji)",
+    "Latency vs energy trade-off\n(down-left is better; modes labelled)":
+        "Odnos latencije i energije\n(dolje lijevo je bolje; načini označeni)",
+    "Jetson Orin Nano power-mode scaling — note the CPU is SLOWER at 25W than 15W\n"
+    "(25W caps CPU at 1344 MHz vs 1497 MHz, reallocating budget to the GPU)":
+        "Skaliranje snage na Jetson Orin Nano — CPU je SPORIJI pri 25W nego pri 15W\n"
+        "(pri 25W CPU je ograničen na 1344 MHz naspram 1497 MHz, čime se proračun "
+        "snage preusmjerava na GPU)",
+}
+
+
+def T(text: str) -> str:
+    """Translate an exact static string, or pass it through unchanged in English."""
+    if LANG != "hr":
+        return text
+    return HR_LABELS.get(text, text)
+
+
+SPLIT_LABELS_HR = {"train": "treniranje", "val": "validacija", "test": "testiranje"}
+
+
+def split_label(split: str) -> str:
+    if LANG == "hr":
+        return SPLIT_LABELS_HR.get(split, split)
+    return split
+
+
+def device_tick_label(raw: str) -> str:
+    """
+    Croatian label for a raw ``bench_device`` key (e.g. ``jetson-cuda@25W``).
+
+    Applied to the latency_by_device x-tick labels (specified by the user) and
+    to the throughput_vs_batch legend, which shows the same raw keys and would
+    otherwise mix languages inside one Croatian figure.
+    """
+    if LANG != "hr":
+        return raw
+    if raw == "cuda":
+        return "Stolni GPU"
+    if raw == "cpu":
+        return "Stolni CPU"
+    if "@" in raw:
+        tier, mode = raw.split("@", 1)
+        mode = "MAXN" if mode == "MAXN_SUPER" else mode
+        if tier == "jetson-cuda":
+            return f"Rubni GPU ({mode})"
+        if tier == "jetson-cpu":
+            return f"Rubni CPU ({mode})"
+    return raw
+
+
+def hr_number_formatter():
+    from matplotlib.ticker import FuncFormatter
+
+    return FuncFormatter(lambda v, _: f"{v:g}".replace(".", ","))
+
+
+def apply_hr_axis(*axis_objs) -> None:
+    """
+    Apply the Croatian decimal-comma tick formatter to numeric axes.
+
+    Never called on the English path -- matplotlib's default ScalarFormatter is
+    left completely alone there, which is part of why the English PNGs are
+    unaffected by this flag.
+    """
+    if LANG != "hr":
+        return
+    fmt = hr_number_formatter()
+    for axis_obj in axis_objs:
+        axis_obj.set_major_formatter(fmt)
+
+
+def fmt_num(value: float, spec: str = ".1f") -> str:
+    """Format a number, using a decimal comma when the Croatian run is active."""
+    text = format(value, spec)
+    return text.replace(".", ",") if LANG == "hr" else text
+
 
 def load(name: str) -> pd.DataFrame | None:
     path = RESULTS_DIR / name
@@ -153,15 +314,25 @@ def benchmark_outputs(benchmarks: pd.DataFrame) -> None:
             positions,
             values,
             width,
-            label=METHOD_STYLE[model]["label"],
+            label=method_label(model),
             color=METHOD_STYLE[model]["color"],
         )
 
     axis.set_xticks([i + 0.4 - width / 2 for i in range(len(devices))])
-    axis.set_xticklabels(devices)
-    axis.set_ylabel("Median latency (ms, batch=1)")
+    device_labels = [device_tick_label(d) for d in devices]
+    # The Croatian labels ("Rubni CPU (25W)") are about as long as the English
+    # raw keys ("jetson-cpu@25W") -- both already overlap horizontally at this
+    # figure width, a pre-existing defect this task did not introduce. Rotating
+    # only under LANG == "hr" fixes it for the new output without touching a
+    # single pixel of the English PNG this task must leave alone.
+    if LANG == "hr":
+        axis.set_xticklabels(device_labels, rotation=20, ha="right")
+    else:
+        axis.set_xticklabels(device_labels)
+    axis.set_ylabel(T("Median latency (ms, batch=1)"))
     axis.set_yscale("log")
-    axis.set_title("Inference latency by device (FP32, lower is better)")
+    axis.set_title(f"{T('Inference latency by device')} (FP32, {T('lower is better')})")
+    apply_hr_axis(axis.yaxis)
     axis.legend(fontsize=8)
     axis.grid(axis="y", alpha=0.3)
     save_figure(fig, "latency_by_device")
@@ -191,11 +362,12 @@ def benchmark_outputs(benchmarks: pd.DataFrame) -> None:
                     marker=METHOD_STYLE[model]["marker"],
                     color=METHOD_STYLE[model]["color"],
                     linestyle="-" if "cuda" in device else "--",
-                    label=f"{METHOD_STYLE[model]['label']} ({device})",
+                    label=f"{method_label(model)} ({device_tick_label(device)})",
                 )
-        axis.set_xlabel("Batch size")
-        axis.set_ylabel("Throughput (images/s)")
-        axis.set_title("Throughput vs batch size")
+        axis.set_xlabel(T("Batch size"))
+        axis.set_ylabel(T("Throughput (images/s)"))
+        axis.set_title(T("Throughput vs batch size"))
+        apply_hr_axis(axis.xaxis, axis.yaxis)
         axis.legend(fontsize=7)
         axis.grid(alpha=0.3)
         save_figure(fig, "throughput_vs_batch")
@@ -309,7 +481,7 @@ def pareto_outputs(common: pd.DataFrame, benchmarks: pd.DataFrame) -> None:
     method_handles = [
         plt.Line2D(
             [], [], color=style["color"], marker=style["marker"], linestyle="",
-            markersize=8, label=style["label"],
+            markersize=8, label=method_label(key),
         )
         for key, style in METHOD_STYLE.items()
         if key in set(best["method"])
@@ -319,20 +491,21 @@ def pareto_outputs(common: pd.DataFrame, benchmarks: pd.DataFrame) -> None:
             [], [], color="grey", marker="o", linestyle="",
             markersize=10 if cs["size"] > 100 else 7,
             markeredgecolor=cs["edge"], markeredgewidth=1.4,
-            alpha=cs["alpha"], label=name,
+            alpha=cs["alpha"], label=T(name),
         )
         for name, cs in CLASS_STYLE.items()
     ]
-    first = axis.legend(handles=method_handles, fontsize=8, loc="lower left", title="Method")
+    first = axis.legend(handles=method_handles, fontsize=8, loc="lower left", title=T("Method"))
     axis.add_artist(first)
     axis.legend(
         handles=class_handles, fontsize=7, loc="lower center",
-        title="Hardware class (red edge = Jetson)",
+        title=T("Hardware class (red edge = Jetson)"),
     )
     axis.set_xscale("log")
-    axis.set_xlabel("Median inference latency (ms, batch=1, log scale)")
-    axis.set_ylabel("Macro-F1 on the common binary 'fire present' task")
-    axis.set_title("Accuracy vs inference cost across detection paradigms")
+    axis.set_xlabel(T("Median inference latency (ms, batch=1, log scale)"))
+    axis.set_ylabel(T("Macro-F1 on the common binary 'fire present' task"))
+    axis.set_title(T("Accuracy vs inference cost across detection paradigms"))
+    apply_hr_axis(axis.xaxis, axis.yaxis)
     axis.grid(alpha=0.3)
     save_figure(fig, "pareto_accuracy_vs_latency")
 
@@ -396,19 +569,22 @@ def jetson_outputs(benchmarks: pd.DataFrame) -> None:
             ]
             axis.plot(
                 range(len(order)), values,
-                marker=style["marker"], color=style["color"], label=style["label"],
+                marker=style["marker"], color=style["color"], label=method_label(method),
             )
         axis.set_xticks(range(len(order)))
         axis.set_xticklabels(order)
-        axis.set_xlabel("Power mode")
-        axis.set_ylabel("Median latency (ms, batch=1)")
+        axis.set_xlabel(T("Power mode"))
+        axis.set_ylabel(T("Median latency (ms, batch=1)"))
+        apply_hr_axis(axis.yaxis)
         axis.set_title(label)
         axis.grid(alpha=0.3)
         axis.legend(fontsize=7)
 
     fig.suptitle(
-        "Jetson Orin Nano power-mode scaling — note the CPU is SLOWER at 25W than 15W\n"
-        "(25W caps CPU at 1344 MHz vs 1497 MHz, reallocating budget to the GPU)",
+        T(
+            "Jetson Orin Nano power-mode scaling — note the CPU is SLOWER at 25W than 15W\n"
+            "(25W caps CPU at 1344 MHz vs 1497 MHz, reallocating budget to the GPU)"
+        ),
         fontsize=10,
     )
     fig.tight_layout()
@@ -446,27 +622,29 @@ def energy_outputs(energy: pd.DataFrame, common: pd.DataFrame | None) -> None:
             latencies = [subset[subset["power_mode"] == m]["latency_ms_median"].min() for m in order]
             energies = [subset[subset["power_mode"] == m]["energy_total_mj"].min() for m in order]
             axes[0].plot(range(len(order)), energies, marker=style["marker"],
-                         color=style["color"], label=style["label"])
+                         color=style["color"], label=method_label(method))
             axes[1].plot(latencies, energies, marker=style["marker"],
-                         color=style["color"], label=style["label"])
+                         color=style["color"], label=method_label(method))
             for index, mode in enumerate(order):
                 axes[1].annotate(mode.replace("_SUPER", ""), (latencies[index], energies[index]),
                                  fontsize=6, xytext=(3, 3), textcoords="offset points")
 
         axes[0].set_xticks(range(len(order)))
         axes[0].set_xticklabels(order)
-        axes[0].set_xlabel("Power mode")
-        axes[0].set_ylabel("Energy per inference (mJ)")
+        axes[0].set_xlabel(T("Power mode"))
+        axes[0].set_ylabel(T("Energy per inference (mJ)"))
         axes[0].set_yscale("log")
-        axes[0].set_title("Energy rises with power mode\n(the fastest mode is the least efficient)")
+        axes[0].set_title(T("Energy rises with power mode\n(the fastest mode is the least efficient)"))
+        apply_hr_axis(axes[0].yaxis)
         axes[0].grid(alpha=0.3)
         axes[0].legend(fontsize=7)
 
-        axes[1].set_xlabel("Median latency (ms)")
-        axes[1].set_ylabel("Energy per inference (mJ)")
+        axes[1].set_xlabel(T("Median latency (ms)"))
+        axes[1].set_ylabel(T("Energy per inference (mJ)"))
         axes[1].set_xscale("log")
         axes[1].set_yscale("log")
-        axes[1].set_title("Latency vs energy trade-off\n(down-left is better; modes labelled)")
+        axes[1].set_title(T("Latency vs energy trade-off\n(down-left is better; modes labelled)"))
+        apply_hr_axis(axes[1].xaxis, axes[1].yaxis)
         axes[1].grid(alpha=0.3)
         fig.tight_layout()
         save_figure(fig, "jetson_energy_tradeoff")
@@ -491,7 +669,7 @@ def energy_outputs(energy: pd.DataFrame, common: pd.DataFrame | None) -> None:
                      color=style["color"], marker=style["marker"],
                      edgecolors="black", linewidths=0.8)
         axis.annotate(
-            f"{style['label']}\n{cheapest['energy_total_mj']:.1f} mJ @ {cheapest['power_mode']}",
+            f"{method_label(method)}\n{fmt_num(cheapest['energy_total_mj'])} mJ @ {cheapest['power_mode']}",
             (cheapest["energy_total_mj"], row["f1_macro"]),
             fontsize=7, xytext=(6, -10), textcoords="offset points",
         )
@@ -505,9 +683,10 @@ def energy_outputs(energy: pd.DataFrame, common: pd.DataFrame | None) -> None:
         })
 
     axis.set_xscale("log")
-    axis.set_xlabel("Energy per inference (mJ, log scale) — Jetson GPU, TensorRT FP16")
-    axis.set_ylabel("Macro-F1 on the common binary 'fire present' task")
-    axis.set_title("Accuracy vs energy: what each paradigm costs per frame")
+    axis.set_xlabel(T("Energy per inference (mJ, log scale) — Jetson GPU, TensorRT FP16"))
+    axis.set_ylabel(T("Macro-F1 on the common binary 'fire present' task"))
+    axis.set_title(T("Accuracy vs energy: what each paradigm costs per frame"))
+    apply_hr_axis(axis.xaxis, axis.yaxis)
     axis.grid(alpha=0.3)
     save_figure(fig, "accuracy_vs_energy")
 
@@ -797,7 +976,7 @@ def threshold_outputs() -> None:
         axis.errorbar(
             group["threshold"], group["f1_macro"],
             yerr=group["std"].fillna(0.0),
-            marker=style["marker"], color=style["color"], label=style["label"],
+            marker=style["marker"], color=style["color"], label=method_label(method),
             capsize=3, linewidth=1.6,
         )
         plotted = True
@@ -809,12 +988,22 @@ def threshold_outputs() -> None:
 
     n_seeds = int(grouped["n_seeds"].max())
     axis.set_xscale("log")
-    axis.set_xlabel("Operating threshold (detector confidence / mask-area fraction, log scale)")
-    axis.set_ylabel("Macro-F1 on the common binary task")
-    axis.set_title(
-        "Sensitivity to the collapse threshold\n"
-        f"seeded checkpoints, mean ± std (up to {n_seeds} seeds per point)"
-    )
+    axis.set_xlabel(T("Operating threshold (detector confidence / mask-area fraction, log scale)"))
+    axis.set_ylabel(T("Macro-F1 on the common binary task"))
+    # Interpolates n_seeds, so it cannot be a plain HR_LABELS dict lookup --
+    # composed explicitly per language instead.
+    if LANG == "hr":
+        title = (
+            "Osjetljivost na radni prag\n"
+            f"sjemenovane kontrolne točke, srednja vrijednost ± st. dev. (do {n_seeds} sjemena po točki)"
+        )
+    else:
+        title = (
+            "Sensitivity to the collapse threshold\n"
+            f"seeded checkpoints, mean ± std (up to {n_seeds} seeds per point)"
+        )
+    axis.set_title(title)
+    apply_hr_axis(axis.xaxis, axis.yaxis)
     axis.legend(fontsize=8)
     axis.grid(alpha=0.3)
     save_figure(fig, "threshold_sensitivity")
@@ -971,12 +1160,16 @@ def robustness_outputs(robustness: pd.DataFrame) -> None:
             ].tolist()
             axis.plot(
                 severities, accuracies,
-                marker=style["marker"], color=style["color"], label=style["label"],
+                marker=style["marker"], color=style["color"], label=method_label(method),
             )
         group = robustness[robustness["corruption"] == corruption]["group"].iloc[0]
+        # Corruption/group identifiers (gaussian_noise, unseen_in_training, ...)
+        # are technical data values with no Croatian mapping given, and are left
+        # in English -- see the report for this decision.
         axis.set_title(f"{corruption}\n({group.replace('_', ' ')})", fontsize=9)
-        axis.set_xlabel("Severity")
-        axis.set_ylabel("Accuracy")
+        axis.set_xlabel(T("Severity"))
+        axis.set_ylabel(T("Accuracy"))
+        apply_hr_axis(axis.xaxis, axis.yaxis)
         axis.grid(alpha=0.3)
         if index == 0:
             axis.legend(fontsize=7)
@@ -984,7 +1177,7 @@ def robustness_outputs(robustness: pd.DataFrame) -> None:
     for index in range(len(corruptions), rows * columns):
         axes[index // columns][index % columns].axis("off")
 
-    fig.suptitle("Accuracy degradation under corruption: standard vs robust training", y=1.0)
+    fig.suptitle(T("Accuracy degradation under corruption: standard vs robust training"), y=1.0)
     fig.tight_layout()
     save_figure(fig, "robustness_curves")
 
@@ -1076,6 +1269,9 @@ def dataset_outputs(stats: pd.DataFrame) -> None:
     per_split = stats[stats["split"] != "all"]
     fig, axis = plt.subplots(figsize=(8, 4.5))
     splits = sorted(per_split["split"].unique())
+    # Displayed x-axis categories only; filtering below still uses the English
+    # split names that the CSV actually stores.
+    display_splits = [split_label(s) for s in splits]
     classes = ["Neither", "Only_Fire", "Only_Smoke", "Both"]
     bottom = [0.0] * len(splits)
 
@@ -1088,11 +1284,22 @@ def dataset_outputs(stats: pd.DataFrame) -> None:
             )
             for s in splits
         ]
-        axis.bar(splits, values, bottom=bottom, label=class_name)
+        # class_name (Neither/Only_Fire/Only_Smoke/Both) is left untranslated in
+        # both languages -- these are the project's class-identifier names, used
+        # verbatim in every table column (f1_Only_Fire, ...), not prose.
+        axis.bar(display_splits, values, bottom=bottom, label=class_name)
         bottom = [b + v for b, v in zip(bottom, values)]
 
-    axis.set_ylabel("Share of split (%)")
-    axis.set_title("Class distribution is stable across splits (Only_Fire is 5.4% overall)")
+    axis.set_ylabel(T("Share of split (%)"))
+    if LANG == "hr":
+        title = (
+            "Raspodjela razreda podjednaka je u svim podskupovima "
+            "(udio razreda Only_Fire iznosi 5,4% ukupno)"
+        )
+    else:
+        title = "Class distribution is stable across splits (Only_Fire is 5.4% overall)"
+    axis.set_title(title)
+    apply_hr_axis(axis.yaxis)
     axis.legend(fontsize=8)
     axis.grid(axis="y", alpha=0.3)
     save_figure(fig, "dataset_distribution")
@@ -1100,7 +1307,22 @@ def dataset_outputs(stats: pd.DataFrame) -> None:
 
 def main() -> None:
     configure_logging()
-    argparse.ArgumentParser(description="Generate thesis tables and figures.").parse_args()
+    parser = argparse.ArgumentParser(description="Generate thesis tables and figures.")
+    parser.add_argument(
+        "--lang", choices=["en", "hr"], default="en",
+        help="Figure language. 'en' (default) writes results/figures/ exactly as "
+             "before. 'hr' writes results/figures/hr/ with Croatian labels, from "
+             "the SAME plotting code -- there is no forked hr copy of any figure "
+             "function, so the two language versions cannot silently drift apart. "
+             "Tables are always English regardless of this flag: the thesis "
+             "tables were written in Croatian by hand and are a different, "
+             "unrelated set of files.",
+    )
+    args = parser.parse_args()
+
+    global LANG, FIGURES_DIR
+    LANG = args.lang
+    FIGURES_DIR = (RESULTS_DIR / "figures" / "hr") if LANG == "hr" else (RESULTS_DIR / "figures")
 
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
